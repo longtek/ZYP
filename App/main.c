@@ -4,7 +4,6 @@
 char a[16]={'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p'};
 char bfile[16]={'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p'};
 char cfile[32]={0};
-unsigned char raw[1033336];
 OS_STK  MainTaskStk[MainTaskStkLengh];
 OS_STK  BToothTaskStk[BToothTaskStkLengh];
 OS_STK  Can2515TaskStk[Can2515TaskStkLengh];
@@ -16,9 +15,9 @@ OS_STK  BTReceiveTaskStk[BTReceiveTaskStkLengh];
 
 OS_EVENT *RxD_Sem,*Sound_Sem,*Tx_Sem,*Rx_Sem;
 extern CanConfig canconfig;
-U8 state=RxCmdState,WhFlag=128,Index=0;
-U8  SoundData[256];
-U32 FileDataLenth=0;
+U8 state=RxCmdState,Index=0;
+U8  SoundData[128];
+U32 FileDataLenth=0,WhFlag=0,Change=1;
 int Main(void)
 {  
     TargetInit();
@@ -46,9 +45,9 @@ void  MainTask(void *pdata)
     OSTaskCreate(SoundTask,(void *)0, &SoundTaskStk[SoundTaskStkLengh - 1], SoundTaskPrio);  
     while(1)
     {     
-       Led0_On();
+       Led0_On();Led1_Off();
        OSTimeDlyHMSM(0,0,1,0);
-       Led0_Off();
+       Led0_Off();Led1_On();
        OSTimeDlyHMSM(0,0,1,0); 
     }
 }
@@ -100,14 +99,6 @@ void BToothTask(void *pdata)
                       Bluetooth_Putbyte('\n');                      
                       OSTaskDel(BTSendTaskPrio);
                    break;
-             case 'e':Bluetooth_Putbyte(data);
-                      Bluetooth_Putbyte('\n');
-                      FileDataLenth=1033336; 
-                      Index=0;
-                      OS_ENTER_CRITICAL();
-                      OSTaskCreate(BTReceiveTask,raw, &BTReceiveTaskStk[BTReceiveTaskStkLengh - 1], BTReceiveTaskPrio); 
-                      OS_EXIT_CRITICAL();                      
-                      break;
              default:
                    break;
          }
@@ -161,7 +152,7 @@ void Can2515Task(void *pdata)
     while(1)
     {
        //CAN_2515_RX();      
-       OSTimeDlyHMSM(0,0,1,0);
+       OSTimeDlyHMSM(0,0,1,0);       
     }
 }
 void SoundTask(void *pdata)
@@ -176,17 +167,16 @@ void SoundTask(void *pdata)
     Wm8731RegInit();
     OS_ENTER_CRITICAL(); 
     IIS_Init();
-    DMA_Init(rawData,1033336);      
+    DMA_Init(&SoundData[0],64);      
     OS_EXIT_CRITICAL();
     Sound_Sem=OSSemCreate(0); 
     rDMASKTRIG2=(0<<2)|(1<<1)|0;  
     while(1)
     {  
-         OSSemPend(Sound_Sem,0,&err); 
-         /*for(i=0;i<128;i+=2)
+         OSSemPend(Sound_Sem,0,&err);                
+         for(i=0;i<64;i++)
          {
              SoundData[i+WhFlag]=rawData[iphasecnt++];
-             SoundData[i+1+WhFlag]=rawData[iphasecnt++];
              if(iphasecnt>=1033336)
              {
                 iphasecnt=0;
@@ -198,12 +188,7 @@ void SoundTask(void *pdata)
          } 
          else
          {
-            WhFlag=128;
-         } */
-        // WhFlag+=128;
-        //     if(WhFlag>=1033336)
-        //     {
-        //        WhFlag=0;
-        //     }
+            WhFlag=64;
+         } 
     }
 }

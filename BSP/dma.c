@@ -2,7 +2,7 @@
 #include "config.h"
 extern OS_EVENT  *Tx_Sem,*Rx_Sem,*RxD_Sem,*Sound_Sem;
 extern U8  SoundData[128];
-extern U8 WhFlag;
+extern U32 WhFlag;
 void DMA_Init(unsigned char *pData,unsigned int nSoundLend)
 {
        rINTMOD1 = 0x0;  
@@ -55,10 +55,16 @@ void DMA_IRQ(void)
     DMA_Channel=rSUBSRCPND;    
     if(DMA_Channel&(BIT_SUB_DMA2))
     {  
-      //if(WhFlag)   
-       //rDISRC2 = (U32)(&rawData[WhFlag]);
-       rDMASKTRIG2=(0<<2)|(1<<1)|0;
-       OSSemPost(Sound_Sem);
+      if(WhFlag)
+      {  
+        rDISRC2 = (U32)(&SoundData[0]);
+      }
+      else
+      {
+        rDISRC2 = (U32)(&SoundData[64]);
+      }
+      rDMASKTRIG2=(0<<2)|(1<<1)|0; 
+      OSSemPost(Sound_Sem);
     }
     OS_ENTER_CRITICAL(); 
     rSUBSRCPND|=DMA_Channel;        
