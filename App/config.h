@@ -101,6 +101,8 @@ typedef double         fp64;                    // 双精度浮点数(64位长度)
 #include "wm8731.h"
 #include "wav.h"
 #include "dma.h"
+#include "prowav.h"
+#include "basicdata.h"
 // 以下根据需要改动
 /********************************/
 /*       用户定义内容           */

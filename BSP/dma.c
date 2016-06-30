@@ -1,9 +1,9 @@
 #include "2416addr.h" 
 #include "config.h"
 extern OS_EVENT  *Tx_Sem,*Rx_Sem,*RxD_Sem,*Sound_Sem;
-extern U8  SoundData[128];
+extern S16  SoundData[64];
 extern U32 WhFlag;
-void DMA_Init(unsigned char *pData,unsigned int nSoundLend)
+void DMA_Init(short *pData,unsigned int nSoundLend)
 {
        rINTMOD1 = 0x0;  
        pISR_DMA =(unsigned int)DMA_IRQ;     
@@ -14,14 +14,14 @@ void DMA_Init(unsigned char *pData,unsigned int nSoundLend)
        rDISRCC2= (0<<1)|(0<<0);//AHB,置0时数据地址在传输完成之后自动w增加数据大小;
        rDIDST2 = (unsigned int )&rIISTXD; 
        rDIDSTC2= (0<<2)|(1<<1)|(1<<0);//APB,fixed;
-       rDCON2  = (1<<31)+(0<<30)+(1<<29)+(0<<28)+(0<<27)+(0<<24)+(1<<22)+(1<<20)+nSoundLend/2;
+       rDCON2  = (1<<31)+(0<<30)+(1<<29)+(0<<28)+(0<<27)+(0<<24)+(1<<22)+(1<<20)+nSoundLend;
        //Handshake,sync PLCK,TC int,single tx,27 single service,24I2SSDO,23I2Srequest,22 Auto-reload,half-word,size/2;
        rDMASKTRIG2=(0<<2)|(0<<1)|0;
        EnableSubIrq(BIT_SUB_DMA2);
        EnableIrq(BIT_DMA); 
        //No-stop,DMA2 channel on,No-sw trigger5
 }
-void InitDMATxMode(unsigned char *pData,unsigned int nDataLend)
+void InitDMATxMode(char *pData,unsigned int nDataLend)
 {
     rDMAREQSEL0=(23<<1)|(1<<0); 
     rDISRC0 = (unsigned int )(pData);
@@ -61,7 +61,7 @@ void DMA_IRQ(void)
       }
       else
       {
-        rDISRC2 = (U32)(&SoundData[64]);
+        rDISRC2 = (U32)(&SoundData[32]);
       }
       rDMASKTRIG2=(0<<2)|(1<<1)|0; 
       OSSemPost(Sound_Sem);

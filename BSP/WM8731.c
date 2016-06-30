@@ -120,8 +120,8 @@ void Wm8731RegInit(void)
 	 Wm8731WriteReg(Reg7, 0xe);// 16bit iis
 	 Wm8731WriteReg(Reg5, 0x04);// 
 	 Wm8731WriteReg(Reg9, 0x1);//
-	 Wm8731WriteReg(Reg2,0xe0);
-	 Wm8731WriteReg(Reg3,0xe0);
+	// Wm8731WriteReg(Reg2,0xe0);
+	// Wm8731WriteReg(Reg3,0xe0);
 }
 void IIS_Init(void)
 {

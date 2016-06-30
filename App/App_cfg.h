@@ -9,6 +9,7 @@
 #define SoundTaskStkLengh      1024
 #define BTSendTaskStkLengh     1024
 #define BTReceiveTaskStkLengh  1024
+#define ProcessTaskStkLengh    1024
 
 #define N_MESSAGES 128
 #define NormalTaskPrio    5
@@ -19,6 +20,7 @@
 #define CheckTaskPrio     NormalTaskPrio+3
 #define SoundTaskPrio     NormalTaskPrio
 #define BTReceiveTaskPrio NormalTaskPrio+2
+#define ProcessTaskPrio    NormalTaskPrio+4
 
 void MainTask(void *pdata);
 void BToothTask(void *pdata);
@@ -26,4 +28,5 @@ void Can2515Task(void *pdata);
 void BTReceiveTask(void *pdata);
 void SoundTask(void *pdata);
 void BTSendTask(void *pdata);
+void ProcessTask(void *pdata);
 #endif

@@ -1,9 +1,9 @@
 #include "config.h"
 #include "app_cfg.h"
-#include "wav.h"
 char a[16]={'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p'};
 char bfile[16]={'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p'};
 char cfile[32]={0};
+short  m_Wavadata[4140]={0};
 OS_STK  MainTaskStk[MainTaskStkLengh];
 OS_STK  BToothTaskStk[BToothTaskStkLengh];
 OS_STK  Can2515TaskStk[Can2515TaskStkLengh];
@@ -12,12 +12,12 @@ OS_STK  CheckTaskStk[CheckTaskStkLengh];
 OS_STK  SoundTaskStk[SoundTaskStkLengh];
 OS_STK  BTSendTaskStk[BTSendTaskStkLengh];
 OS_STK  BTReceiveTaskStk[BTReceiveTaskStkLengh];
-
+OS_STK  ProcessTaskStk[ProcessTaskStkLengh];
 OS_EVENT *RxD_Sem,*Sound_Sem,*Tx_Sem,*Rx_Sem;
 extern CanConfig canconfig;
 U8 state=RxCmdState,Index=0;
-U8  SoundData[128];
-U32 FileDataLenth=0,WhFlag=0,Change=1;
+S16  SoundData[64];
+U32 FileDataLenth=0,WhFlag=0;
 int Main(void)
 {  
     TargetInit();
@@ -29,9 +29,7 @@ int Main(void)
 }
 void  MainTask(void *pdata)
 {
-    U32 i=0;
-    U8 flag=1;
-    U32 count=0;
+
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif
@@ -41,8 +39,8 @@ void  MainTask(void *pdata)
     OS_EXIT_CRITICAL();
     OSStatInit();
     OSTaskCreate(Can2515Task,(void *)0, &Can2515TaskStk[Can2515TaskStkLengh - 1], Can2515TaskPrio);   
-    OSTaskCreate(BToothTask,(void *)0, &BToothTaskStk[BToothTaskStkLengh - 1], BToothTaskPrio);   	
-    OSTaskCreate(SoundTask,(void *)0, &SoundTaskStk[SoundTaskStkLengh - 1], SoundTaskPrio);  
+    OSTaskCreate(BToothTask,(void *)0, &BToothTaskStk[BToothTaskStkLengh - 1], BToothTaskPrio);   	    
+    OSTaskCreate(ProcessTask,(void *)0, &ProcessTaskStk[ProcessTaskStkLengh - 1], ProcessTaskPrio);  
     while(1)
     {     
        Led0_On();Led1_Off();
@@ -50,6 +48,21 @@ void  MainTask(void *pdata)
        Led0_Off();Led1_On();
        OSTimeDlyHMSM(0,0,1,0); 
     }
+}
+void ProcessTask(void *pdata)
+{
+    #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
+    OS_CPU_SR  cpu_sr;
+    #endif
+    while(1)
+    {
+       CreatePerRpmDatasize(&rpm_datasize[0]);
+       CaculateDataAddress(rpm_datasize,&rpm_sizefromzero[0]);
+       WavadataCreateWithSin(rpm_datasize,&m_Wavadata[0]);
+       Uart_Printf("%d,%d,%d,%d\n",m_Wavadata[0],m_Wavadata[1],m_Wavadata[4138],m_Wavadata[4139]);
+       OSTaskCreate(SoundTask,(void *)0, &SoundTaskStk[SoundTaskStkLengh - 1], SoundTaskPrio);  
+       OSTaskSuspend(OS_PRIO_SELF); 
+    }   
 }
 void BToothTask(void *pdata)
 {
@@ -106,13 +119,13 @@ void BToothTask(void *pdata)
 }
 void BTReceiveTask(void *pdata)
 {
-    U8 i,err;
+    U8 err;
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif
     Change2DMARxMode(Index);
     OS_ENTER_CRITICAL(); 
-    InitDMARxMode((char *)pdata,FileDataLenth,Index);
+    InitDMARxMode((unsigned char *)pdata,FileDataLenth,Index);
     OS_EXIT_CRITICAL();      
     OSSemPend(RxD_Sem,0,&err);  
     Uart_Printf("complete %d\n",FileDataLenth);  
@@ -121,7 +134,7 @@ void BTReceiveTask(void *pdata)
 }
 void BTSendTask(void *pdata)
 {
-    U8 err,i=0;
+    U8 err;
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif
@@ -151,13 +164,14 @@ void Can2515Task(void *pdata)
 	Can_2515Setup();		
     while(1)
     {
-       //CAN_2515_RX();      
-       OSTimeDlyHMSM(0,0,1,0);       
+       //CAN_2515_RX(); 
+       
+       OSTimeDlyHMSM(0,0,0,50);       
     }
 }
 void SoundTask(void *pdata)
 {
-    unsigned short music=0,i=0;
+    unsigned short i=0;
     U32 iphasecnt=0;
     U8 err;
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
@@ -167,17 +181,18 @@ void SoundTask(void *pdata)
     Wm8731RegInit();
     OS_ENTER_CRITICAL(); 
     IIS_Init();
-    DMA_Init(&SoundData[0],64);      
+    DMA_Init(&SoundData[0],32);      
     OS_EXIT_CRITICAL();
     Sound_Sem=OSSemCreate(0); 
     rDMASKTRIG2=(0<<2)|(1<<1)|0;  
     while(1)
     {  
          OSSemPend(Sound_Sem,0,&err);                
-         for(i=0;i<64;i++)
+         for(i=0;i<32;i+=2)
          {
-             SoundData[i+WhFlag]=rawData[iphasecnt++];
-             if(iphasecnt>=1033336)
+             SoundData[i+WhFlag]=m_Wavadata[iphasecnt];
+             SoundData[i+1+WhFlag]=m_Wavadata[iphasecnt++];
+             if(iphasecnt>=4141)
              {
                 iphasecnt=0;
              }
@@ -188,7 +203,7 @@ void SoundTask(void *pdata)
          } 
          else
          {
-            WhFlag=64;
+            WhFlag=32;
          } 
     }
 }
