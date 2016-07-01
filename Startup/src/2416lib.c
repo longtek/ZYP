@@ -406,7 +406,6 @@ void Timer_Start(int divider)  //0:16us,1:32us 2:64us 3:128us
     rWTCON = ((m_pclk/1000000-1)<<8)|(divider<<3);  //Watch-dog timer control register
     rWTDAT = 0xffff;  //Watch-dog timer data register
     rWTCNT = 0xffff;  //Watch-dog count register
-
       // Watch-dog timer enable & interrupt  disable
     rWTCON = (rWTCON & ~(1<<5) & ~(1<<2)) |(1<<5);
 }
@@ -501,15 +500,6 @@ void ChangeClockDivider(int predivn_val,int hdivn_val,int pdivn_val)
 }
 
 
-
-//**************************[ UPLL ]*******************************
-void ChangeUPllValue(int mdiv,int pdiv,int sdiv)
-{
-    
-}
-
-
-//*************************[ General Library ]**********************
 
 
 

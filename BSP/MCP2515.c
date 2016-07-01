@@ -11,6 +11,7 @@
 #include "2416slib.h" 
 #include "MCP2515.h"
 extern CanConfig canconfig;
+extern float m_Rpm,m_Speed,m_Throttle;
 /****************************************************************************
 MCP2515_CS		GPB7		output		( nSS0 )
 MCP2515_SI		GPE12		output		( SPIMOSI0 )
@@ -693,19 +694,19 @@ void CAN_2515_RX(void)
         Uart_Printf( "count=%d,Reveice Data=%x,%x,%x,%x,%x,%x,%x,%x\n",count,data_read[0],data_read[1],data_read[2],data_read[3],data_read[4],data_read[5],data_read[6],data_read[7] );                            
         if(id==canconfig.RPM.ID)
         {
-            Can_Data_Process(data_read,canconfig.RPM);
+            Can_Data_Process(data_read,canconfig.RPM,&m_Rpm);
         }
         else if(id== canconfig.SPEED.ID)
         {
-            Can_Data_Process(data_read,canconfig.SPEED);
+            Can_Data_Process(data_read,canconfig.SPEED,&m_Speed);
         }
         else if(id==canconfig.THROTTLE.ID )
         {
-            Can_Data_Process(data_read,canconfig.THROTTLE);
+            Can_Data_Process(data_read,canconfig.THROTTLE,&m_Throttle);
         }  
     }
 } 
-void Can_Data_Process(U8 *data_read,CANELE canelem)
+void Can_Data_Process(U8 *data_read,CANELE canelem,float *CanVal)
 {
         U8 data[4]={0,0,0,0};
         U32 *p=(U32*)data,j,val=0;
@@ -713,11 +714,12 @@ void Can_Data_Process(U8 *data_read,CANELE canelem)
         {
             for(j=0;j<4;j++)
             {
-                if(canelem.BYTENUM+2-j>7)
+                if(canelem.BYTENUM+2-j>7) //canelem.BYTENUM+2-j =canelem.BYTENUM-1+3-j 
                    data[j]=0;
-                else  data[j]=data_read[canelem.BYTENUM+2-j];
+                else  
+                   data[j]=data_read[canelem.BYTENUM+2-j];
             }         
-            val=*p<<(7-canelem.BITPOS)>>(32-canelem.DATALEN);
+            val=*p<<(7-canelem.BITPOS)>>(32-canelem.DATALEN);//左移移除无效位，右移取有效数据长度
         }
         else
         {
@@ -730,6 +732,7 @@ void Can_Data_Process(U8 *data_read,CANELE canelem)
             }
             val=(*p>>(7-canelem.BITPOS))&(0xffffffff>>(32-canelem.DATALEN));
         } 
+        *CanVal=val*canelem.DATACOEF;
         Uart_Printf( "Reveice Data=%x,%x,%x,%x\n",data[0],data[1],data[2],data[3]); 
         Uart_Printf("0x%x %d\n",*p,val);      
 } 

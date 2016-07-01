@@ -13,7 +13,7 @@ U32 rpm_datasize[129]={0};
 void  CreatePerRpmDatasize(U32 *DataSize)
 {
     S32 iorder=0,irpm=0;	                                       //阶次转速计数;
-	float orderfre=0.0;                                            //阶次频率;
+	U32 orderfre=0;                                                //阶次频率;
 	U32 Minorder=0,MarkOrder=0,flag;
 	if(*OrderData<=0.0)                                            //如阶次信息为零则跳出函数;
 		return;
@@ -45,8 +45,8 @@ void  CreatePerRpmDatasize(U32 *DataSize)
 	   }
 	   if(Minorder>0)
 	   {
-	     orderfre=(float)Minorder*BasicFre[irpm];
-         *(DataSize+irpm)=SAMPLERATE/orderfre; 
+	     orderfre=Minorder*BasicFre[irpm];
+         *(DataSize+irpm)=(float)SAMPLERATE/orderfre+0.5; 
          Uart_Printf("irpm=%d,%d\n",irpm,*(DataSize+irpm));    
        }
 	}	
@@ -60,13 +60,17 @@ void  CreatePerRpmDatasize(U32 *DataSize)
 void WavadataCreateWithSin(U32 *DataSize,S16 *Wavadata)
 {
      U32   icount=0,iorder=0,iRpm=0,j,iStartSize;
-     float temp_val=0;
+     float temp_val=0.0;
 	 U32 frerpm;
-	 U32 it_phase;
-	 for(iRpm=20;iRpm<21;iRpm++)
+	 U32 it_phase[40];
+	 for(iorder=0;iorder<40;iorder++)
+	 {
+	    it_phase[iorder]=m_RpmPhase[iorder]; //获取初始相位 
+	 }
+	 for(iRpm=20;iRpm<50;iRpm++)
 	 {
 		 iStartSize=rpm_sizefromzero[iRpm];
-		 if(iStartSize<=0)
+		 if(iStartSize<0)
 		 continue;
          for(iorder=0;iorder<40;iorder++)                  //声音阶次
          {    
@@ -74,11 +78,10 @@ void WavadataCreateWithSin(U32 *DataSize,S16 *Wavadata)
 				 break;
              frerpm=BasicFre[iRpm]*OrderData[iorder];     //计算频率
 			 if(frerpm>200) 
-			 {
-                it_phase=m_RpmPhase[iorder];                 //获取初始相位     
+			 {                   
                 for(j=0;j<DataSize[iRpm];j++)                        
                 {
-                    temp_val=m_RpmAmt[iRpm][iorder]*rawDataSin[it_phase];     //计算声音数据
+                    temp_val=m_RpmAmt[iRpm][iorder]*rawDataSin[it_phase[iorder]];     //计算声音数据
                     if(temp_val>0)
                     {
                        temp_val+=0.5;
@@ -87,24 +90,39 @@ void WavadataCreateWithSin(U32 *DataSize,S16 *Wavadata)
                     {
                        temp_val-=0.5;
                     }
-                    Wavadata[j]+=(short)temp_val; //#important              
-                    it_phase+=frerpm;
-                    if(it_phase>=441000)
+                    Wavadata[j+iStartSize]+=(short)temp_val; //#important              
+                    it_phase[iorder]+=frerpm;                    
+                    if(it_phase[iorder]>=441000)
                     {
-                       it_phase-=441000;
+                       it_phase[iorder]-=441000;
                     }           //计算声音相位；
                 }
              }            
-         }         
+         } 
 	 }
 }
 void CaculateDataAddress(U32 *datasize, U32 *StartAddr)
 {
      U32 temp_size=0,i=0;
-	 for(i=0;i<129;i++)
+	 for(i=20;i<50;i++)
 	 {	   
-       StartAddr[i] =  temp_size;
-	   temp_size   +=  datasize[i];
+        StartAddr[i] =  temp_size;
+	    temp_size   +=  datasize[i];
+	    Uart_Printf("irpm=%d,%d\n",i, StartAddr[i]); 
+	 }
+}
+void  CaculateInsertData(short *firt,short *tail, U8 InsertN,short *InsertData)
+{
+	 S16 FortOff,TailOff,ValOfSub;
+     FortOff=*(firt+1)-*firt;
+	 TailOff=*(tail)-*(tail-1);
+	 if(FortOff-TailOff>0)
+	 {
+		
+	 }
+	 else
+	 {
+		
 	 }
 }
 

@@ -5,7 +5,7 @@ void GetCanConfigInfo(void)
 {
     canconfig.CAN_bandrate=0;
 	canconfig.CAN_IsExt=0;
-	canconfig.CAN_endian=1;              
+	canconfig.CAN_endian=1;//1=big 0=little              
 	canconfig.RPM.ID=250; 
 	canconfig.RPM.BYTENUM=7;
 	canconfig.RPM.BITPOS=7;

@@ -20,7 +20,8 @@
 #define CheckTaskPrio     NormalTaskPrio+3
 #define SoundTaskPrio     NormalTaskPrio
 #define BTReceiveTaskPrio NormalTaskPrio+2
-#define ProcessTaskPrio    NormalTaskPrio+4
+#define ProcessTaskPrio   NormalTaskPrio+4
+
 
 void MainTask(void *pdata);
 void BToothTask(void *pdata);
@@ -29,4 +30,5 @@ void BTReceiveTask(void *pdata);
 void SoundTask(void *pdata);
 void BTSendTask(void *pdata);
 void ProcessTask(void *pdata);
+void CheckTask(void *pdata);
 #endif

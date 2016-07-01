@@ -14,12 +14,11 @@ OS_STK  BTReceiveTaskStk[BTReceiveTaskStkLengh];
 OS_STK  ProcessTaskStk[ProcessTaskStkLengh];
 OS_EVENT *RxD_Sem,*Sound_Sem,*Tx_Sem,*Rx_Sem;
 extern CanConfig canconfig;
-U8 Index=0;                            //selet DMA channel
-S16  SoundData[64];                    //data cache buffer
-U32 FileDataLenth=0,WhFlag=0;          
+U8 state=RxCmdState,Index=0;
+S16  SoundData[64];
+U32 FileDataLenth=0,WhFlag=0;
 short  m_Wavadata[82000]={0};
-float m_Rpm,m_Speed,m_Throttle;
-U8 RpmIndex=21,Old_RpmIndex=21;
+U8 RpmIndex=20,Old_RpmIndex=20;
 int Main(void)
 {  
     TargetInit();
@@ -62,10 +61,10 @@ void ProcessTask(void *pdata)
     #endif
     while(1)
     {
-       CreatePerRpmDatasize(&rpm_datasize[0]);                  /*Caculate datasize of every rpm*/
-       CaculateDataAddress(rpm_datasize,&rpm_sizefromzero[0]);  /*Store the data'startaddress of every rpm */
-       WavadataCreateWithSin(rpm_datasize,&m_Wavadata[0]);      /*Caculate sound'data according to basic data and parameters*/
-       Uart_Printf("finished\n");+
+       CreatePerRpmDatasize(&rpm_datasize[0]);
+       CaculateDataAddress(rpm_datasize,&rpm_sizefromzero[0]);
+       WavadataCreateWithSin(rpm_datasize,&m_Wavadata[0]);
+       Uart_Printf("finished\n");
        OSTaskResume(SoundTaskPrio);      
        OSTaskSuspend(OS_PRIO_SELF); 
     }   
@@ -87,7 +86,6 @@ void BToothTask(void *pdata)
     {                  
         OSSemPend(Rx_Sem,0,&err);
         data=RdURXH2();
-        Uart_Printf("%c\n",data);
         switch(data)
         {
              case 'a':Bluetooth_Putbyte(data);
@@ -107,7 +105,7 @@ void BToothTask(void *pdata)
                       OS_EXIT_CRITICAL();
                    break;
              case 'c':Bluetooth_Putbyte(data);
-                      Bluetooth_Putbyte('\n');-
+                      Bluetooth_Putbyte('\n');
                       OS_ENTER_CRITICAL();                      
                       OSTaskCreate(BTSendTask,(void *)0, &BTSendTaskStk[BTSendTaskStkLengh - 1], BTSendTaskPrio);                       
                       OS_EXIT_CRITICAL();
@@ -136,12 +134,11 @@ void CheckTask(void *pdata)
         if(data=='+')
         {
           RpmIndex+=1;
-          if(RpmIndex>=49)RpmIndex=49;
+          if(RpmIndex>=44)RpmIndex=44;
           iStartSize=rpm_sizefromzero[RpmIndex];
           j=rpm_datasize[RpmIndex];
-          Uart_Printf(" %d, %d, %d",m_Wavadata[iStartSize],m_Wavadata[iStartSize+1],m_Wavadata[iStartSize+2]); 
-          Uart_Printf(" %d, %d, %d",m_Wavadata[j+iStartSize-3],m_Wavadata[j+iStartSize-2],m_Wavadata[j+iStartSize-1]); 
-		  Uart_SendByte('\n');
+          Uart_Printf("%d, %d, %d, %d, %d, %d ,%d, %d",iStartSize,j+iStartSize-1,m_Wavadata[iStartSize],m_Wavadata[iStartSize+1],m_Wavadata[iStartSize+2],m_Wavadata[j+iStartSize-3],m_Wavadata[j+iStartSize-2],m_Wavadata[j+iStartSize-1]); 
+          Uart_SendByte('\n');
         }
         else if(data=='-')
         {                     
@@ -149,9 +146,8 @@ void CheckTask(void *pdata)
           if(RpmIndex<=20)RpmIndex=20;
           iStartSize=rpm_sizefromzero[RpmIndex];
           j=rpm_datasize[RpmIndex];
-          Uart_Printf(" %d, %d, %d",m_Wavadata[iStartSize],m_Wavadata[iStartSize+1],m_Wavadata[iStartSize+2]); 
-          Uart_Printf(" %d, %d, %d",m_Wavadata[j+iStartSize-3],m_Wavadata[j+iStartSize-2],m_Wavadata[j+iStartSize-1]); 
-		  Uart_SendByte('\n');
+          Uart_Printf("%d, %d, %d, %d, %d, %d ,%d, %d",iStartSize,j+iStartSize-1,m_Wavadata[iStartSize],m_Wavadata[iStartSize+1],m_Wavadata[iStartSize+2],m_Wavadata[j+iStartSize-3],m_Wavadata[j+iStartSize-2],m_Wavadata[j+iStartSize-1]); 
+          Uart_SendByte('\n');
         }
         OSTimeDlyHMSM(0,0,0,50);                     
      }
@@ -232,7 +228,7 @@ void SoundTask(void *pdata)
              SoundData[i+WhFlag]   = m_Wavadata[iphasecnt+CntOffset];
              SoundData[i+1+WhFlag] = m_Wavadata[iphasecnt+CntOffset];
              if(++iphasecnt>=rpm_datasize[Old_RpmIndex])
-             {  //判断转速是否增加或减少
+             {  //判断转速是否增加或较少
                 iphasecnt=0;
                 if(Old_RpmIndex<RpmIndex)
                 {  
