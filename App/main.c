@@ -19,7 +19,7 @@ S16  SoundData[64];                    //data cache buffer
 U32 FileDataLenth=0,WhFlag=0;          
 short  m_Wavadata[82000]={0};
 float m_Rpm,m_Speed,m_Throttle;
-U8 RpmIndex=21,Old_RpmIndex=21;
+U8 RpmIndex=20,Old_RpmIndex=20;
 int Main(void)
 {  
     TargetInit();
@@ -65,7 +65,7 @@ void ProcessTask(void *pdata)
        CreatePerRpmDatasize(&rpm_datasize[0]);                  /*Caculate datasize of every rpm*/
        CaculateDataAddress(rpm_datasize,&rpm_sizefromzero[0]);  /*Store the data'startaddress of every rpm */
        WavadataCreateWithSin(rpm_datasize,&m_Wavadata[0]);      /*Caculate sound'data according to basic data and parameters*/
-       Uart_Printf("finished\n");+
+       Uart_Printf("finished\n");
        OSTaskResume(SoundTaskPrio);      
        OSTaskSuspend(OS_PRIO_SELF); 
     }   
@@ -203,8 +203,8 @@ void Can2515Task(void *pdata)
 	Can_2515Setup();		
     while(1)
     {
-       //CAN_2515_RX();        
-       OSTimeDlyHMSM(0,0,0,50);       
+       CAN_2515_TEXT();        
+       OSTimeDlyHMSM(0,0,2,10);       
     }
 }
 void SoundTask(void *pdata)

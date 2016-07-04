@@ -147,14 +147,6 @@ void  CaculateInsertData(short *firt,short *tail, U8 InsertN,short *InsertData)
 			 
 		}
 	 }
-	 else if((FortOff>0)&&(TailOff<0))
-     {
-
-	 }
-	 else if((FortOff<0)&&(TailOff>0))
-     {
-
-	 }
 }
 
 

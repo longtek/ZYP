@@ -12,6 +12,7 @@
 #include "MCP2515.h"
 extern CanConfig canconfig;
 extern float m_Rpm,m_Speed,m_Throttle;
+extern U32 RpmIndex;
 /****************************************************************************
 MCP2515_CS		GPB7		output		( nSS0 )
 MCP2515_SI		GPE12		output		( SPIMOSI0 )
@@ -578,9 +579,8 @@ void Can_2515Setup(void)
     // As no filters are active, all messages will be stored in RXB0 only if
     // no roll-over is active. We want to recieve all CAN messages (standard and extended)
     // (RXM<1:0> = 11).
-    //SPI_mcp_write_bits(RXB0CTRL, RXB_RX_ANY, 0xFF);
-    //SPI_mcp_write_bits(RXB1CTRL, RXB_RX_ANY, 0xFF);
-
+    // SPI_mcp_write_bits(RXB0CTRL, RXB_RX_ANY, 0xFF);
+    // SPI_mcp_write_bits(RXB1CTRL, RXB_RX_ANY, 0xFF);
     // But there is a bug in the chip, so we have to activate roll-over.
 	MCP2515_WriteBits(RXB0CTRL, RXB_RX_STD|RXB_BUKT, 0xFF);		//关闭屏蔽滤波功能，接收所有报文，允许滚存 
 	MCP2515_WriteBits(RXB1CTRL, RXB_RX_STD, 0xFF);		//关闭屏蔽滤波功能，接收所有报文
@@ -612,9 +612,9 @@ void Init_MCP2515(CanBandRate bandrate,CanConfig Canfig)
 	MCP2515_Write_Can_ID(RXF4SIDH, 0x236, 0);
 	MCP2515_Write_Can_ID(RXF5SIDH, 0x237, 0);
 
-	//MCP2515_Write(CLKCTRL, MODE_LOOPBACK| CLKEN | CLK8);//回环模式
+	MCP2515_Write(CLKCTRL, MODE_LOOPBACK| CLKEN | CLK8);//回环模式
     //如果不能用两台设备联机实验的话，可以选择回环模式
-    MCP2515_Write(CLKCTRL, MODE_NORMAL| CLKEN | CLK8);//标准模式
+    //MCP2515_Write(CLKCTRL, MODE_NORMAL| CLKEN | CLK8);//标准模式
   
 	// Clear, deactivate the three transmit buffers
 	a = TXB0CTRL;
@@ -646,19 +646,33 @@ void CAN_2515_TEXT(void)
 	unsigned char dlc;
 	int rxRTR,isExt;
 	int temp;
-	
+	static U32 count=0;  
 	U8 data_write[8]={1,2,3,4,5,6,7,8};
-	U8 data_read[8] ;   
+	U8 data_read[8];   
     {
 		Can_Write( 250, data_write, 8, FALSE, FALSE);
 		//Uart_Printf( "Data=%x,%x,%x,%x,%x,%x,%x,%x\n",data_read[0],data_read[1],data_read[2],data_read[3],data_read[4],data_read[5],data_read[6],data_read[7] );	
-		if( (i=Can2515_Poll())!=-1 ) 
+		if((i=Can2515_Poll())!=-1 ) 
 	    {
-		   for( temp=0; temp<8; temp++)  data_read[temp] = 0 ;
-		   temp = Can_Read(i, &id, data_read, &dlc, &rxRTR, &isExt);
-		
-		   Uart_Printf( "i=%d,  ID=0x%x\n",i,id );
-		   Uart_Printf( "Data=%x,%x,%x,%x,%x,%x,%x,%x\n",data_read[0],data_read[1],data_read[2],data_read[3],data_read[4],data_read[5],data_read[6],data_read[7] );	
+            count++;
+            for( temp=0; temp<8; temp++)
+        	   data_read[temp] = 0 ;   
+            temp = Can_Read(i, &id, data_read, &dlc, &rxRTR, &isExt);
+            Uart_Printf( "\ni=%d ID=%d \n",i ,id );   
+            Uart_Printf( "count=%d,Reveice Data=%x,%x,%x,%x,%x,%x,%x,%x\n",count,data_read[0],data_read[1],data_read[2],data_read[3],data_read[4],data_read[5],data_read[6],data_read[7] );                            
+            if(id==canconfig.RPM.ID)
+            {
+               Can_Data_Process(data_read,canconfig.RPM,&m_Rpm);
+               RpmIndex=(int)m_Rpm>>6;
+            }
+            else if(id== canconfig.SPEED.ID)
+            {
+              Can_Data_Process(data_read,canconfig.SPEED,&m_Speed);
+            }
+            else if(id==canconfig.THROTTLE.ID )
+            {
+               Can_Data_Process(data_read,canconfig.THROTTLE,&m_Throttle);
+            }
 		}
 	 }	
 }
@@ -685,16 +699,15 @@ void CAN_2515_RX(void)
     U8 data_read[8];   
     if( (i=Can2515_Poll())!=-1 )  
     {   
-        count++;
-        for( temp=0; temp<8; temp++)
-        	data_read[temp] = 0 ;   
+        count++; 
         temp = Can_Read(i, &id, data_read, &dlc, &rxRTR, &isExt);
         CTRL=RXB0CTRL+(i<<4); 
-        Uart_Printf( "\ni=%d  RXF=%x ID=%d \n",i, MCP2515_Read(CTRL)&(0x1|(0x6*i)) ,id );   
+        Uart_Printf( "\ni=%d ID=%d \n",i, MCP2515_Read(CTRL)&(0x1|(0x6*i)) ,id );   
         Uart_Printf( "count=%d,Reveice Data=%x,%x,%x,%x,%x,%x,%x,%x\n",count,data_read[0],data_read[1],data_read[2],data_read[3],data_read[4],data_read[5],data_read[6],data_read[7] );                            
         if(id==canconfig.RPM.ID)
         {
             Can_Data_Process(data_read,canconfig.RPM,&m_Rpm);
+            RpmIndex=(int)m_Rpm>>6;
         }
         else if(id== canconfig.SPEED.ID)
         {
@@ -705,24 +718,40 @@ void CAN_2515_RX(void)
             Can_Data_Process(data_read,canconfig.THROTTLE,&m_Throttle);
         }  
     }
-} 
+}
+/****************************************************************************
+【功能说明】MCP2515 数据处理程序
+    取出数据的有效值，
+    1）判断大端小端，2）复制有效的字节数据 3)移除无效位信息
+    0 = big 1 = little
+    address    0    1    2    3     4     5     6     7   
+    big        MSB  a    b    c     d                 LSB
+    little     LSB  d    c    b     a                 MSB
+   when can data's in big endian mode,the program will read an int start from 1th to 4th 
+ so the  value  of the int is 'dcba' ,it's wrong ,we should exchange their positions
+ so that we could read the data we want 'abcd'.
+   when can data is in little endian mode,we don't need to exchange their positions.
+ If the valible bits isn't start from 7th,we should shift the extra bits before we caculate
+ finally value.    
+****************************************************************************/ 
 void Can_Data_Process(U8 *data_read,CANELE canelem,float *CanVal)
 {
         U8 data[4]={0,0,0,0};
         U32 *p=(U32*)data,j,val=0;
-        if(canconfig.CAN_endian==0)  
-        {
+        if(canconfig.CAN_endian==0)   
+        {   
             for(j=0;j<4;j++)
             {
                 if(canelem.BYTENUM+2-j>7) //canelem.BYTENUM+2-j =canelem.BYTENUM-1+3-j 
                    data[j]=0;
                 else  
                    data[j]=data_read[canelem.BYTENUM+2-j];
-            }         
-            val=*p<<(7-canelem.BITPOS)>>(32-canelem.DATALEN);//左移移除无效位，右移取有效数据长度
+            } 
+            val=*p<<(7-canelem.BITPOS)>>(32-canelem.DATALEN);   
         }
         else
-        {
+        {  
+            
             for(j=0;j<4;j++)
             {
                 if(canelem.BYTENUM-1+j>7)
@@ -730,9 +759,10 @@ void Can_Data_Process(U8 *data_read,CANELE canelem,float *CanVal)
                 else
                    data[j]=data_read[canelem.BYTENUM-1+j];
             }
+            data[0]<<=7-canelem.BITPOS;
             val=(*p>>(7-canelem.BITPOS))&(0xffffffff>>(32-canelem.DATALEN));
         } 
         *CanVal=val*canelem.DATACOEF;
-        Uart_Printf( "Reveice Data=%x,%x,%x,%x\n",data[0],data[1],data[2],data[3]); 
-        Uart_Printf("0x%x %d\n",*p,val);      
+        Uart_Printf("Reveice Data=%x,%x,%x,%x\n",data[0],data[1],data[2],data[3]); 
+        Uart_Printf("0x%x %x  %f\n",*p,val,(float)*CanVal);      
 } 
