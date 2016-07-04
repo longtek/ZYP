@@ -732,22 +732,25 @@ void CAN_2515_RX(void)
  so that we could read the data we want 'abcd'.
    when can data is in little endian mode,we don't need to exchange their positions.
  If the valible bits isn't start from 7th,we should shift the extra bits before we caculate
- finally value.    
+ finally value. 
+    byte      7  6 5 4 3 2 1 0
+                   ^
+                   pos   
 ****************************************************************************/ 
 void Can_Data_Process(U8 *data_read,CANELE canelem,float *CanVal)
 {
         U8 data[4]={0,0,0,0};
         U32 *p=(U32*)data,j,val=0;
-        if(canconfig.CAN_endian==0)   
+        if(canconfig.CAN_endian==0)         
         {   
-            for(j=0;j<4;j++)
-            {
+            for(j=0;j<4;j++)               //¸´ÖÆÓÐÐ§×Ö½Ú¿ªÊ¼µÄ4¸ö×Ö½ÚÊý¾Ý,×éºÏ³ÉÒ»¸öintÊý¾Ý
+            {                              //³ÌÐòÊÇlittle ÐèÒª½»»»Êý¾ÝÎ»ÖÃ£
                 if(canelem.BYTENUM+2-j>7) //canelem.BYTENUM+2-j =canelem.BYTENUM-1+3-j 
                    data[j]=0;
                 else  
                    data[j]=data_read[canelem.BYTENUM+2-j];
             } 
-            val=*p<<(7-canelem.BITPOS)>>(32-canelem.DATALEN);   
+            val=*p<<(7-canelem.BITPOS)>>(32-canelem.DATALEN); //È¡ÓÐÐ§µÄÊý¾Ý£¬ÒÆ³ýposÖ®Ç°µÄbit,È»ºóÓÐÐ§Êý¾ÝÒÆµ½µÍÎ»  
         }
         else
         {  
@@ -759,7 +762,7 @@ void Can_Data_Process(U8 *data_read,CANELE canelem,float *CanVal)
                 else
                    data[j]=data_read[canelem.BYTENUM-1+j];
             }
-            data[0]<<=7-canelem.BITPOS;
+            data[0]<<=7-canelem.BITPOS;       
             val=(*p>>(7-canelem.BITPOS))&(0xffffffff>>(32-canelem.DATALEN));
         } 
         *CanVal=val*canelem.DATACOEF;
