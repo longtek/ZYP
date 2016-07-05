@@ -67,7 +67,7 @@ void WavadataCreateWithSin(U32 *DataSize,S16 *Wavadata)
 	 {
 	    it_phase[iorder]=m_RpmPhase[iorder]; //获取初始相位 
 	 }
-	 for(iRpm=20;iRpm<50;iRpm++)
+	 for(iRpm=20;iRpm<80;iRpm++)
 	 {
 		 iStartSize=rpm_sizefromzero[iRpm];
 		 if(iStartSize<0)
@@ -104,7 +104,7 @@ void WavadataCreateWithSin(U32 *DataSize,S16 *Wavadata)
 void CaculateDataAddress(U32 *datasize, U32 *StartAddr)
 {
      U32 temp_size=0,i=0;
-	 for(i=20;i<50;i++)
+	 for(i=20;i<80;i++)
 	 {	   
         StartAddr[i] =  temp_size;
 	    temp_size   +=  datasize[i];

@@ -12,7 +12,8 @@
 #include "MCP2515.h"
 extern CanConfig canconfig;
 extern float m_Rpm,m_Speed,m_Throttle;
-extern U32 RpmIndex;
+extern U8 m_RpmIndex,m_OldRpmIndex;
+extern U8 m_ToChange;
 /****************************************************************************
 MCP2515_CS		GPB7		output		( nSS0 )
 MCP2515_SI		GPE12		output		( SPIMOSI0 )
@@ -612,9 +613,9 @@ void Init_MCP2515(CanBandRate bandrate,CanConfig Canfig)
 	MCP2515_Write_Can_ID(RXF4SIDH, 0x236, 0);
 	MCP2515_Write_Can_ID(RXF5SIDH, 0x237, 0);
 
-	MCP2515_Write(CLKCTRL, MODE_LOOPBACK| CLKEN | CLK8);//回环模式
+	//MCP2515_Write(CLKCTRL, MODE_LOOPBACK| CLKEN | CLK8);//回环模式
     //如果不能用两台设备联机实验的话，可以选择回环模式
-    //MCP2515_Write(CLKCTRL, MODE_NORMAL| CLKEN | CLK8);//标准模式
+    MCP2515_Write(CLKCTRL, MODE_NORMAL| CLKEN | CLK8);//标准模式
   
 	// Clear, deactivate the three transmit buffers
 	a = TXB0CTRL;
@@ -630,8 +631,7 @@ void Init_MCP2515(CanBandRate bandrate,CanConfig Canfig)
 	MCP2515_Write(RXB1CTRL, 0);
 
 	// The two pins RX0BF and RX1BF are used to control two LEDs; set them as outputs and set them as 00.
-	MCP2515_Write(BFPCTRL, 0x3C);
-	
+	MCP2515_Write(BFPCTRL, 0x3C);	
 	//Open Interrupt
 	MCP2515_Write(CANINTE, RX0IE|RX1IE);
 }
@@ -663,7 +663,7 @@ void CAN_2515_TEXT(void)
             if(id==canconfig.RPM.ID)
             {
                Can_Data_Process(data_read,canconfig.RPM,&m_Rpm);
-               RpmIndex=(int)m_Rpm>>6;
+               //RpmIndex=(int)m_Rpm>>6;
             }
             else if(id== canconfig.SPEED.ID)
             {
@@ -702,12 +702,14 @@ void CAN_2515_RX(void)
         count++; 
         temp = Can_Read(i, &id, data_read, &dlc, &rxRTR, &isExt);
         CTRL=RXB0CTRL+(i<<4); 
-        Uart_Printf( "\ni=%d ID=%d \n",i, MCP2515_Read(CTRL)&(0x1|(0x6*i)) ,id );   
+        Uart_Printf( "\ni=%d ID=%d \n",i,id );   
         Uart_Printf( "count=%d,Reveice Data=%x,%x,%x,%x,%x,%x,%x,%x\n",count,data_read[0],data_read[1],data_read[2],data_read[3],data_read[4],data_read[5],data_read[6],data_read[7] );                            
         if(id==canconfig.RPM.ID)
         {
             Can_Data_Process(data_read,canconfig.RPM,&m_Rpm);
-            RpmIndex=(int)m_Rpm>>6;
+              m_RpmIndex=((int)m_Rpm>>6)&0xff;
+              if(m_RpmIndex<20) m_RpmIndex=20;
+              if(m_RpmIndex>=80)m_RpmIndex=79;          
         }
         else if(id== canconfig.SPEED.ID)
         {
@@ -762,10 +764,9 @@ void Can_Data_Process(U8 *data_read,CANELE canelem,float *CanVal)
                 else
                    data[j]=data_read[canelem.BYTENUM-1+j];
             }
-            data[0]<<=7-canelem.BITPOS;       
+            data[0]<<=7-canelem.BITPOS;      //预先处理掉高位无效数据; 
             val=(*p>>(7-canelem.BITPOS))&(0xffffffff>>(32-canelem.DATALEN));
         } 
         *CanVal=val*canelem.DATACOEF;
-        Uart_Printf("Reveice Data=%x,%x,%x,%x\n",data[0],data[1],data[2],data[3]); 
         Uart_Printf("0x%x %x  %f\n",*p,val,(float)*CanVal);      
 } 

@@ -7,8 +7,8 @@ void GetCanConfigInfo(void)
 	canconfig.CAN_IsExt=0;
 	canconfig.CAN_endian=0;//0=big 1=little              
 	canconfig.RPM.ID=250; 
-	canconfig.RPM.BYTENUM=6;
-	canconfig.RPM.BITPOS=3;
+	canconfig.RPM.BYTENUM=7;
+	canconfig.RPM.BITPOS=7;
 	canconfig.RPM.DATALEN=16;
 	canconfig.RPM.DATACOEF=1;
 	canconfig.SPEED.ID=257;

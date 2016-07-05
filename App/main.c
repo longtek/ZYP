@@ -13,13 +13,13 @@ OS_STK  BTSendTaskStk[BTSendTaskStkLengh];
 OS_STK  BTReceiveTaskStk[BTReceiveTaskStkLengh];
 OS_STK  ProcessTaskStk[ProcessTaskStkLengh];
 OS_EVENT *RxD_Sem,*Sound_Sem,*Tx_Sem,*Rx_Sem;
-extern CanConfig canconfig;
+extern CanConfig canconfig;            
 U8 Index=0;                            //selet DMA channel
 S16  SoundData[64];                    //data cache buffer
 U32 FileDataLenth=0,WhFlag=0;          
-short  m_Wavadata[82000]={0};
-float m_Rpm,m_Speed,m_Throttle;
-U8 RpmIndex=20,Old_RpmIndex=20;
+short  m_Wavadata[820000]={0};
+float m_Rpm,m_Speed,m_Throttle;       //三个CAN信息
+U8 m_RpmIndex=20,m_OldRpmIndex=20,m_ToChange=FALSE;       //转速位置;
 int Main(void)
 {  
     TargetInit();
@@ -135,20 +135,20 @@ void CheckTask(void *pdata)
         data=Uart_GetKey();
         if(data=='+')
         {
-          RpmIndex+=1;
-          if(RpmIndex>=49)RpmIndex=49;
-          iStartSize=rpm_sizefromzero[RpmIndex];
-          j=rpm_datasize[RpmIndex];
+          m_RpmIndex+=1;
+          if(m_RpmIndex>=49)m_RpmIndex=49;
+          iStartSize=rpm_sizefromzero[m_RpmIndex];
+          j=rpm_datasize[m_RpmIndex];
           Uart_Printf(" %d, %d, %d",m_Wavadata[iStartSize],m_Wavadata[iStartSize+1],m_Wavadata[iStartSize+2]); 
           Uart_Printf(" %d, %d, %d",m_Wavadata[j+iStartSize-3],m_Wavadata[j+iStartSize-2],m_Wavadata[j+iStartSize-1]); 
 		  Uart_SendByte('\n');
         }
         else if(data=='-')
         {                     
-          RpmIndex-=1;
-          if(RpmIndex<=20)RpmIndex=20;
-          iStartSize=rpm_sizefromzero[RpmIndex];
-          j=rpm_datasize[RpmIndex];
+          m_RpmIndex-=1;
+          if(m_RpmIndex<=20)m_RpmIndex=20;
+          iStartSize=rpm_sizefromzero[m_RpmIndex];
+          j=rpm_datasize[m_RpmIndex];
           Uart_Printf(" %d, %d, %d",m_Wavadata[iStartSize],m_Wavadata[iStartSize+1],m_Wavadata[iStartSize+2]); 
           Uart_Printf(" %d, %d, %d",m_Wavadata[j+iStartSize-3],m_Wavadata[j+iStartSize-2],m_Wavadata[j+iStartSize-1]); 
 		  Uart_SendByte('\n');
@@ -203,8 +203,8 @@ void Can2515Task(void *pdata)
 	Can_2515Setup();		
     while(1)
     {
-       CAN_2515_TEXT();        
-       OSTimeDlyHMSM(0,0,2,10);       
+       CAN_2515_RX();    
+       OSTimeDlyHMSM(0,0,1,0);       
     }
 }
 void SoundTask(void *pdata)
@@ -231,19 +231,21 @@ void SoundTask(void *pdata)
          {
              SoundData[i+WhFlag]   = m_Wavadata[iphasecnt+CntOffset];
              SoundData[i+1+WhFlag] = m_Wavadata[iphasecnt+CntOffset];
-             if(++iphasecnt>=rpm_datasize[Old_RpmIndex])
+             if(++iphasecnt>=rpm_datasize[m_OldRpmIndex])
              {  //判断转速是否增加或减少
                 iphasecnt=0;
-                if(Old_RpmIndex<RpmIndex)
-                {  
-                      Old_RpmIndex+=1;
-                      CntOffset=rpm_sizefromzero[Old_RpmIndex];
-                }
-                else if(Old_RpmIndex>RpmIndex)
-                { 
-                      Old_RpmIndex-=1;
-                      CntOffset=rpm_sizefromzero[Old_RpmIndex];
-                }
+                  if(m_OldRpmIndex<m_RpmIndex)
+                  {  
+                      m_OldRpmIndex+=1;
+                      Uart_Printf("%d\n",m_OldRpmIndex);
+                      CntOffset=rpm_sizefromzero[m_OldRpmIndex];
+                  }
+                  else if(m_OldRpmIndex>m_RpmIndex)
+                  { 
+                      m_OldRpmIndex-=1;
+                      Uart_Printf("%d\n",m_OldRpmIndex);
+                      CntOffset=rpm_sizefromzero[m_OldRpmIndex];
+                  }
              }
          }
          if(WhFlag)
