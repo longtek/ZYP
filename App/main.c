@@ -233,7 +233,10 @@ void SoundTask(void *pdata)
              SoundData[i+1+WhFlag] = m_Wavadata[iphasecnt+CntOffset];
              if(++iphasecnt>=rpm_datasize[m_OldRpmIndex])
              {  //判断转速是否增加或减少
-                iphasecnt=0;
+                  iphasecnt=0;
+                if(m_ToChange==FALSE)
+                {
+                  m_ToChange=TRUE;
                   if(m_OldRpmIndex<m_RpmIndex)
                   {  
                       m_OldRpmIndex+=1;
@@ -246,6 +249,8 @@ void SoundTask(void *pdata)
                       Uart_Printf("%d\n",m_OldRpmIndex);
                       CntOffset=rpm_sizefromzero[m_OldRpmIndex];
                   }
+                  m_ToChange=FALSE;
+                }
              }
          }
          if(WhFlag)
