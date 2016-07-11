@@ -9,7 +9,7 @@ OS_STK	Task_SoundStk [Task_SoundStkLengh];
 OS_STK	Task_LedStk [Task_LedStkLengh]; 
 OS_STK	Task_CANStk [Task_CANStkLengh];
 OS_STK	Task_NFStk [Task_NFStkLengh];
-OS_EVENT *Sem_DMA;
+OS_EVENT *Sem_DMA,*Sem_Can;
 U32 WhFlag;
 void *MsgGrp[];
 U8  SoundData[128];
@@ -65,17 +65,23 @@ void Task_Led(void *pdata) //task for test
 }
 void Task_CAN(void *pdata) //task for CAN
 {
+    U8 err;
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif    
     pdata=pdata;
     GetCanConfigInfo();
     Init_MCP2515(BandRate_500kbps,canconfig);
-	Can_2515Setup();		
+    OS_ENTER_CRITICAL();
+    ENITIRQInit();
+    OS_EXIT_CRITICAL();
+    Uart_Printf("start\n");		
+	Can_2515Setup();	
     while(1)
     {
+       OSSemPend(Sem_Can,0,&err);
        CAN_2515_RX();        
-       OSTimeDlyHMSM(0,0,1,0);   
+       //OSTimeDlyHMSM(0,0,1,0);   
     }
   
 }

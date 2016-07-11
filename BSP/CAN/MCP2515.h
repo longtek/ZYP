@@ -240,5 +240,7 @@ void CAN_2515_TEXT(void);
 void CAN_2515_RX(void);
 void CAN_2515_TX(void);
 void Can_Data_Process(U8 *data_read,CANELE canelem,float *CanVal);
+void  ENITIRQInit(void);
+void  EINTIRQSEVER(void);
 #endif /*MCP2515_H*/
 

@@ -9,8 +9,9 @@
 #include "2440addr.h"
 #include "2440lib.h"
 #include "2440slib.h" 
-#include "MCP2515.h"
+#include "config.h"
 extern CanConfig canconfig;
+extern OS_EVENT *Sem_Can;
 float m_Rpm,m_Speed,m_Throttle;
 /****************************************************************************
 MCP2515_CS		GPB7		output		( nSS0 )
@@ -43,6 +44,9 @@ MCP2515_INT		GPG0		input		( EINT8 )
 #define MCP2515_SO_DISPULLUP ( rGPGUP = rGPGUP & (~(1<<5)) )
 #define MCP2515_SO_PULLUP	 ( rGPGUP = rGPGUP | (1<<5) )
 
+#define MCP2515_INT            ( rGPGCON = rGPGCON & (~(3<<4)) | (2<<4))
+#define MCP2515_INT_DISPULLUP  ( rGPGUP = rGPGUP |(1<<2) )
+
 	
 /********************** MCP2515 Instruction *********************************/
 #define MCP2515INSTR_RESET		0xc0		//复位为缺省状态，并设定为配置模式
@@ -61,14 +65,13 @@ static void MCP2515_IO_CS_Init( void )
 {
    U16 k;   
    MCP2515_CS_OUT ;  
-  // MCP2515_CS_PULLUP; 
    MCP2515_SI_OUT ;   
    MCP2515_SCK_OUT ;   
-   MCP2515_SO_IN ;   
-   //MCP2515_SO_PULLUP ;      //允许上拉    
-   //MCP2515_SO_DISPULLUP ;     //禁止上拉    
+   MCP2515_SO_IN ;    
    MCP2515_SI_L ;       //SI put 0     
-   MCP2515_SCK_L ;      //SCK put 0    
+   MCP2515_SCK_L ;      //SCK put 0  
+   MCP2515_INT; 
+   MCP2515_INT_DISPULLUP; 
    for (k = 0; k <= DELAY_TIME; k++);  //延时至少300ns    
    MCP2515_CS_H ;           // unselect the MCP2515    
    for (k = 0; k <= DELAY_TIME; k++);  //延时至少300ns    
@@ -741,4 +744,30 @@ void Can_Data_Process(U8 *data_read,CANELE canelem,float *CanVal)
         *CanVal=val*canelem.DATACOEF;
         Uart_Printf("Reveice Data=%x,%x,%x,%x\n",data[0],data[1],data[2],data[3]); 
         Uart_Printf("0x%x %d\n",*p,val);      
-} 
+}
+void  ENITIRQInit(void)
+{
+   Uart_Printf("startirp\n");
+   MCP2515_INT;		
+   MCP2515_INT_DISPULLUP;
+   EnableIrq(BIT_EINT8_23);
+   rEINTMASK&=~(1<<10);
+   pISR_EINT8_23 = (U32)EINTIRQSEVER;
+}
+void EINTIRQSEVER(void)
+{
+   unsigned int val; 
+   #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
+   OS_CPU_SR  cpu_sr;
+   #endif     
+   OS_ENTER_CRITICAL(); 
+   val=rEINTPEND;
+   if(val&(1<<10))
+   {                
+        rEINTPEND|=(1<<10);
+        OSSemPost(Sem_Can);       
+   }
+   rSRCPND = rSRCPND;
+   rINTPND = rINTPND;
+   OS_EXIT_CRITICAL();
+}
