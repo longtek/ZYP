@@ -1,5 +1,4 @@
 #include "config.h"
-#include"2416addr.h"
 #define	EnableIrq(bit)		rINTMSK1 &= ~(bit)
 #define	EnableSubIrq(bit)	rINTSUBMSK &= ~(bit)
 #define DelayTime 900

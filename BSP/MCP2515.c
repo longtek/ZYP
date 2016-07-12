@@ -31,12 +31,12 @@ MCP2515_INT		GPG0		input		( EINT8 )
 #define MCP2515_CS_L         ( rGPLDAT = rGPLDAT & (~(1<<13))) 
 
 #define MCP2515_SI_OUT		( rGPECON = rGPECON & (~(3<<22)) | (1<<22) )		//GPE11
-#define MCP2515_SI_PULLUP   ( rGPEUDP = rGPEUDP & (~(1<<11)))
+#define MCP2515_SI_PULLUP   ( rGPEUDP = rGPEUDP & (~(3<<22)))
 #define MCP2515_SI_H		( rGPEDAT = rGPEDAT | (1<<11))
 #define MCP2515_SI_L		( rGPEDAT = rGPEDAT & (~(1<<11)) )
 
 #define MCP2515_SCK_OUT		( rGPECON = rGPECON & (~(3<<26)) | (1<<26) )		//GPE13
-#define MCP2515_SCK_PULLUP  ( rGPEUDP = rGPEUDP & (~(1<<13)) )
+#define MCP2515_SCK_PULLUP  ( rGPEUDP = rGPEUDP & (~(1<<26)) )
 #define MCP2515_SCK_H		( rGPEDAT = rGPEDAT | (1<<13) )
 #define MCP2515_SCK_L		( rGPEDAT = rGPEDAT & (~(1<<13)) )
 
@@ -707,14 +707,9 @@ void CAN_2515_RX(void)
         if(id==canconfig.RPM.ID)
         {
             Can_Data_Process(data_read,canconfig.RPM,&m_Rpm);
-            if(m_ToChange==FALSE)
-            {
-              m_ToChange=TRUE;
-              m_RpmIndex=((int)m_Rpm>>6)&0xff;
-              if(m_RpmIndex<10)m_RpmIndex=10;
-              if(m_RpmIndex>=80)m_RpmIndex=79;
-              m_ToChange=FALSE; 
-            }         
+            m_RpmIndex=((int)m_Rpm>>6)&0xff;
+            if(m_RpmIndex<10)m_RpmIndex=10;
+            if(m_RpmIndex>=80)m_RpmIndex=79;    
         }
         else if(id== canconfig.SPEED.ID)
         {

@@ -48,10 +48,8 @@ void  MainTask(void *pdata)
     while(1)
     {     
        Led0_On();
-       Led1_Off();
        OSTimeDlyHMSM(0,0,1,0);
        Led0_Off();
-       Led1_On();
        OSTimeDlyHMSM(0,0,1,0); 
     }
 }
@@ -107,7 +105,7 @@ void BToothTask(void *pdata)
                       OS_EXIT_CRITICAL();
                    break;
              case 'c':Bluetooth_Putbyte(data);
-                      Bluetooth_Putbyte('\n');-
+                      Bluetooth_Putbyte('\n');
                       OS_ENTER_CRITICAL();                      
                       OSTaskCreate(BTSendTask,(void *)0, &BTSendTaskStk[BTSendTaskStkLengh - 1], BTSendTaskPrio);                       
                       OS_EXIT_CRITICAL();
@@ -199,12 +197,13 @@ void Can2515Task(void *pdata)
     #endif    
     pdata=pdata;
     GetCanConfigInfo();
-    Init_MCP2515(BandRate_250kbps,canconfig);
-	Can_2515Setup();		
+    Init_MCP2515(BandRate_500kbps,canconfig);
+	Can_2515Setup();
     while(1)
     {
-       CAN_2515_RX();    
-       OSTimeDlyHMSM(0,0,1,0);       
+       CAN_2515_RX();
+       Led2_On();    
+       OSTimeDlyHMSM(0,0,0,5);       
     }
 }
 void SoundTask(void *pdata)
@@ -234,9 +233,9 @@ void SoundTask(void *pdata)
              if(++iphasecnt>=rpm_datasize[m_OldRpmIndex])
              {  //判断转速是否增加或减少
                   iphasecnt=0;
-                if(m_ToChange==FALSE)
+                //if(m_ToChange==FALSE)
                 {
-                  m_ToChange=TRUE;
+                //  m_ToChange=TRUE;
                   if(m_OldRpmIndex<m_RpmIndex)
                   {  
                       m_OldRpmIndex+=1;
@@ -249,7 +248,7 @@ void SoundTask(void *pdata)
                       Uart_Printf("%d\n",m_OldRpmIndex);
                       CntOffset=rpm_sizefromzero[m_OldRpmIndex];
                   }
-                  m_ToChange=FALSE;
+                //  m_ToChange=FALSE;
                 }
              }
          }

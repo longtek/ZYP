@@ -9,7 +9,7 @@ void led_Init(void)
 	
 	rGPCCON &=~(3<<0);
 	rGPCCON |=(1<<0);
-	rGPCDAT |= (1<<0);
+	rGPCDAT |=(1<<0);
 }
 
 
