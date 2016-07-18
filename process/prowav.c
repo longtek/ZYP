@@ -15,6 +15,21 @@ U32 rpm_datasize[129]={0};
 // 入口参数: 阶次信息
 // 出口参数: 数据大小
 ====================================================*/
+void  ProcessBasicData(U32 *Fredata,U32 *Phase)
+{
+   U32 iOrder,iRpm;
+   for(iOrder=0;iOrder<40;iOrder++)
+   {
+	   Phase[iOrder]=m_RpmPhase[iOrder]; //获取初始相位 
+   }
+   for(iRpm=0;iRpm<129;iRpm++)
+   {
+       for(iOrder=0;iOrder<40;iOrder++)
+       {
+         *(Fredata+iOrder+iRpm*40)=(int)(BasicFre[iRpm]*OrderData[iOrder]+0.5);//计算每个转速下各个阶次相位的增加
+       }
+   }   
+}
 void  CreatePerRpmDatasize(U32 *DataSize)
 {
     S32 iorder=0,irpm=0;	                                       //阶次转速计数;

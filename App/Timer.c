@@ -31,7 +31,6 @@ void Timer0Init(void)
 	rTCFG1 	&= 0xfffffff0;				//set Timer 0 MUX 1/4
 	rTCFG1  |= 0x00000001;				//set Timer 0 MUX 1/4
     rTCNTB0 = (m_pclk/ (4 *15* OS_TICKS_PER_SEC)) - 1;
-    Uart_Printf("m_pclk=%d\n",m_pclk);
     
     rTCON = rTCON & (~0xf) |0x02;   // updata 		
 	rTCON = rTCON & (~0xf) |0x09; 	// star

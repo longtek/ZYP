@@ -3,10 +3,14 @@
 extern OS_EVENT  *Tx_Sem,*Rx_Sem,*RxD_Sem,*Sound_Sem;
 extern S16  SoundData[64];
 extern U32 WhFlag;
+void DMAIntSeverInit(void)
+{
+      EnableIrq(BIT_DMA); 
+      pISR_DMA =(unsigned int)DMA_IRQ;   
+}
 void DMA_Init(short *pData,unsigned int nSoundLend)
 {
-       rINTMOD1 = 0x0;  
-       pISR_DMA =(unsigned int)DMA_IRQ;     
+       rINTMOD1 = 0x0;           
        //ClearPending(BIT_DMA);               
        //rSUBSRCPND|=BIT_SUB_DMA2; 
        rDMAREQSEL2=(4<<1)|(1<<0);    
@@ -18,7 +22,7 @@ void DMA_Init(short *pData,unsigned int nSoundLend)
        //Handshake,sync PLCK,TC int,single tx,27 single service,24I2SSDO,23I2Srequest,22 Auto-reload,half-word,size/2;
        rDMASKTRIG2=(0<<2)|(0<<1)|0;
        EnableSubIrq(BIT_SUB_DMA2);
-       EnableIrq(BIT_DMA); 
+      
        //No-stop,DMA2 channel on,No-sw trigger5
 }
 void InitDMATxMode(char *pData,unsigned int nDataLend)
@@ -32,7 +36,7 @@ void InitDMATxMode(char *pData,unsigned int nDataLend)
     rDMASKTRIG0=(0<<2)|(0<<1)|0;
     EnableSubIrq(BIT_SUB_DMA0);
 }
-void InitDMARxMode(unsigned char *pData,unsigned int nDataLend,unsigned char index)
+void InitDMARxMode( char *pData,unsigned int nDataLend,unsigned char index)
 {
     rDMAREQSEL1=((20+index*2)<<1)|(1<<0);
     if(index==2) 

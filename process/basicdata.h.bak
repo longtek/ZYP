@@ -4,5 +4,5 @@ extern float OrderData[];
 extern unsigned int const BasicFre[];
 extern unsigned short  m_RpmAmt[][40];
 extern unsigned int m_RpmPhase[];
-extern  const short rawDataSin[];
+extern float const rawDataSin[];
 #endif

@@ -128,10 +128,10 @@ void IIS_Init(void)
 	 rCLKDIV1 |= (0<<12); // IIS clock 96M
 	 rIISFIC=TFLUSH(1)|RFLUSH(0);
      rIISFIC=TFLUSH(0)|RFLUSH(0);
-     rIISPSR=PSRAEN(1)|PSVALA(3);  
+     rIISPSR=PSRAEN(1)|PSVALA(5);  
      rIISCON = 0;
      rIISCON=FTXURSTATUS(0)|FTXURINTEN(0)|TXDMAPAUSE(0)|RXDMAPAUSE(0)|TXCHPAUSE(0)|\
              RXCHPAUSE(0)|TXDMACTIVE(1)|RXDMACTIVE(0)|I2SACTIVE(1) ;        
-     rIISMOD=(0<<16)|ChBitLength(DATA_16BIT)|CDCLKCON(0)|IISModeSelet(1)|TXRModeSelet(TxOnly)|\
+     rIISMOD=(0<<16)|ChBitLength(DATA_16BIT)|CDCLKCON(0)|IISModeSelet(0)|TXRModeSelet(TxOnly)|\
              SDataFat(IIS)|CodeClkSelet(MSLK_256FS)|BitClkSelet(BFS_32FS);      
 }

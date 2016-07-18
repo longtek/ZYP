@@ -6,7 +6,7 @@
 #define Can2515TaskStkLengh    1024
 #define Can2510TaskStkLengh    1024
 #define CheckTaskStkLengh      1024
-#define SoundTaskStkLengh      1024
+#define SoundTaskStkLengh      2048
 #define BTSendTaskStkLengh     1024
 #define BTReceiveTaskStkLengh  1024
 #define ProcessTaskStkLengh    1024

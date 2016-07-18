@@ -3,15 +3,15 @@
 char a[16]={'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p'};
 char bfile[16]={'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p'};
 char cfile[32]={0};
-OS_STK  MainTaskStk[MainTaskStkLengh];
-OS_STK  BToothTaskStk[BToothTaskStkLengh];
-OS_STK  Can2515TaskStk[Can2515TaskStkLengh];
-OS_STK  Can2510TaskStk[Can2510TaskStkLengh];
-OS_STK  CheckTaskStk[CheckTaskStkLengh];
-OS_STK  SoundTaskStk[SoundTaskStkLengh];
-OS_STK  BTSendTaskStk[BTSendTaskStkLengh];
-OS_STK  BTReceiveTaskStk[BTReceiveTaskStkLengh];
-OS_STK  ProcessTaskStk[ProcessTaskStkLengh];
+OS_STK   MainTaskStk[MainTaskStkLengh];
+OS_STK   BToothTaskStk[BToothTaskStkLengh];
+OS_STK   Can2515TaskStk[Can2515TaskStkLengh];
+OS_STK   Can2510TaskStk[Can2510TaskStkLengh];
+OS_STK   CheckTaskStk[CheckTaskStkLengh];
+OS_STK   SoundTaskStk[SoundTaskStkLengh];
+OS_STK   BTSendTaskStk[BTSendTaskStkLengh];
+OS_STK   BTReceiveTaskStk[BTReceiveTaskStkLengh];
+OS_STK   ProcessTaskStk[ProcessTaskStkLengh];
 OS_EVENT *RxD_Sem,*Sound_Sem,*Tx_Sem,*Rx_Sem;
 extern CanConfig canconfig;            
 U8 Index=0;                            //selet DMA channel
@@ -19,7 +19,9 @@ S16  SoundData[64];                    //data cache buffer
 U32 FileDataLenth=0,WhFlag=0;          
 short  m_Wavadata[820000]={0};
 float m_Rpm,m_Speed,m_Throttle;       //三个CAN信息
-U8 m_RpmIndex=20,m_OldRpmIndex=20,m_ToChange=FALSE;       //转速位置;
+U8 m_RpmIndex=21,m_OldRpmIndex=21,m_ToChange=FALSE;       //转速位置;
+U32 m_FreData[129][40];
+U32 m_PhaseCnt[40];
 int Main(void)
 {  
     TargetInit();
@@ -37,7 +39,8 @@ void  MainTask(void *pdata)
     #endif
     OS_ENTER_CRITICAL();
     Timer0Init();//initial timer0 for ucos time tick
-    ISRInit();   //initial interrupt prio or enable or disable 
+    ISRInit();   //initial interrupt prio or enable or disable
+    DMAIntSeverInit();
     OS_EXIT_CRITICAL();
     OSStatInit();
     OSTaskCreate(Can2515Task,(void *)0, &Can2515TaskStk[Can2515TaskStkLengh - 1], Can2515TaskPrio);   
@@ -55,15 +58,13 @@ void  MainTask(void *pdata)
 }
 void ProcessTask(void *pdata)
 {
+    
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif
     while(1)
-    {
-       CreatePerRpmDatasize(&rpm_datasize[0]);                  /*Caculate datasize of every rpm*/
-       CaculateDataAddress(rpm_datasize,&rpm_sizefromzero[0]);  /*Store the data'startaddress of every rpm */
-       WavadataCreateWithSin(rpm_datasize,&m_Wavadata[0]);      /*Caculate sound'data according to basic data and parameters*/
-       Uart_Printf("finished\n");
+    {   
+       ProcessBasicData(&m_FreData[0][0],&m_PhaseCnt[0]);
        OSTaskResume(SoundTaskPrio);      
        OSTaskSuspend(OS_PRIO_SELF); 
     }   
@@ -80,7 +81,6 @@ void BToothTask(void *pdata)
     Tx_Sem=OSSemCreate(0);
     Rx_Sem=OSSemCreate(1);
     RxD_Sem=OSSemCreate(0);
-    OSTaskSuspend(BTSendTaskPrio); 
     while(1)
     {                  
         OSSemPend(Rx_Sem,0,&err);
@@ -115,7 +115,6 @@ void BToothTask(void *pdata)
                       Bluetooth_Putbyte('\n');                      
                       OSTaskDel(BTSendTaskPrio);
                    break;
-
              default:
                    break;
          }
@@ -134,22 +133,14 @@ void CheckTask(void *pdata)
         if(data=='+')
         {
           m_RpmIndex+=1;
-          if(m_RpmIndex>=49)m_RpmIndex=49;
-          iStartSize=rpm_sizefromzero[m_RpmIndex];
-          j=rpm_datasize[m_RpmIndex];
-          Uart_Printf(" %d, %d, %d",m_Wavadata[iStartSize],m_Wavadata[iStartSize+1],m_Wavadata[iStartSize+2]); 
-          Uart_Printf(" %d, %d, %d",m_Wavadata[j+iStartSize-3],m_Wavadata[j+iStartSize-2],m_Wavadata[j+iStartSize-1]); 
-		  Uart_SendByte('\n');
+          if(m_RpmIndex>=128)m_RpmIndex=128;
+          Uart_Printf("%d\n",m_RpmIndex);
         }
         else if(data=='-')
         {                     
           m_RpmIndex-=1;
-          if(m_RpmIndex<=20)m_RpmIndex=20;
-          iStartSize=rpm_sizefromzero[m_RpmIndex];
-          j=rpm_datasize[m_RpmIndex];
-          Uart_Printf(" %d, %d, %d",m_Wavadata[iStartSize],m_Wavadata[iStartSize+1],m_Wavadata[iStartSize+2]); 
-          Uart_Printf(" %d, %d, %d",m_Wavadata[j+iStartSize-3],m_Wavadata[j+iStartSize-2],m_Wavadata[j+iStartSize-1]); 
-		  Uart_SendByte('\n');
+          if(m_RpmIndex<=1)m_RpmIndex=1;
+          Uart_Printf("%d\n",m_RpmIndex);
         }
         OSTimeDlyHMSM(0,0,0,50);                     
      }
@@ -159,10 +150,10 @@ void BTReceiveTask(void *pdata)
     U8 err;
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
-    #endif
+    #endif    
     Change2DMARxMode(Index);
     OS_ENTER_CRITICAL(); 
-    InitDMARxMode((unsigned char *)pdata,FileDataLenth,Index);
+    InitDMARxMode((char *)pdata,FileDataLenth,Index);
     OS_EXIT_CRITICAL();      
     OSSemPend(RxD_Sem,0,&err);  
     Uart_Printf("complete %d\n",FileDataLenth);  
@@ -184,7 +175,8 @@ void BTSendTask(void *pdata)
          rDMASKTRIG0=(0<<2)|(1<<1)|0;                
          OSSemPend(Tx_Sem,0,&err);
          while(!(rUTRSTAT2 & (1 << 2)));
-         Change2IRQTxMode(); 
+         Uart_Printf("abcdefghijklmnop\n");
+         Change2IRQTxMode();          
          Bluetooth_Putbyte('\n');
          Change2DMATxMode();                                        
          OSTimeDlyHMSM(0,0,2,0);           
@@ -192,25 +184,27 @@ void BTSendTask(void *pdata)
 }
 void Can2515Task(void *pdata)
 {
+    
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif    
     pdata=pdata;
     GetCanConfigInfo();
-    Init_MCP2515(BandRate_500kbps,canconfig);
+    Init_MCP2515(BandRate_1Mbps,canconfig);
 	Can_2515Setup();
     while(1)
     {
-       CAN_2515_RX();
-       Led2_On();    
-       OSTimeDlyHMSM(0,0,0,5);       
+        CAN_2515_TX();   
+        OSTimeDlyHMSM(0,0,1,0);       
     }
 }
 void SoundTask(void *pdata)
 {
-    unsigned short i=0;
-    U32 iphasecnt=0,CntOffset=0;
-    U8 err;
+    unsigned char buffId=0,id;
+    short music=0,Tamt=0;
+    int imusic[16]; 
+    U32 iphasecnt=0,PhaseOff=0;
+    U8 err,iOrder;
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif
@@ -224,41 +218,49 @@ void SoundTask(void *pdata)
     OSTaskSuspend(OS_PRIO_SELF); 
     rDMASKTRIG2=(0<<2)|(1<<1)|0;  
     while(1)
-    {  
-         OSSemPend(Sound_Sem,0,&err);                
-         for(i=0;i<32;i+=2)
+    {                   
+        // OSSemPend(Sound_Sem,0,&err);  
+         for(iOrder=0;iOrder<40;iOrder++) 
          {
-             SoundData[i+WhFlag]   = m_Wavadata[iphasecnt+CntOffset];
-             SoundData[i+1+WhFlag] = m_Wavadata[iphasecnt+CntOffset];
-             if(++iphasecnt>=rpm_datasize[m_OldRpmIndex])
-             {  //判断转速是否增加或减少
-                  iphasecnt=0;
-                //if(m_ToChange==FALSE)
-                {
-                //  m_ToChange=TRUE;
-                  if(m_OldRpmIndex<m_RpmIndex)
-                  {  
-                      m_OldRpmIndex+=1;
-                      Uart_Printf("%d\n",m_OldRpmIndex);
-                      CntOffset=rpm_sizefromzero[m_OldRpmIndex];
-                  }
-                  else if(m_OldRpmIndex>m_RpmIndex)
-                  { 
-                      m_OldRpmIndex-=1;
-                      Uart_Printf("%d\n",m_OldRpmIndex);
-                      CntOffset=rpm_sizefromzero[m_OldRpmIndex];
-                  }
-                //  m_ToChange=FALSE;
-                }
+             iphasecnt=m_PhaseCnt[iOrder];
+             PhaseOff =m_FreData[38][iOrder];
+             Tamt = m_RpmAmt[38][iOrder];
+             for(buffId=0;buffId<16;buffId++)
+             {
+                 imusic[buffId]+=Tamt*rawDataSin[iphasecnt];            
+                 iphasecnt+=PhaseOff; 
+                 if(iphasecnt>=441000)
+                 {
+                    iphasecnt-=441000;
+                 }                 
              }
-         }
+             m_PhaseCnt[iOrder]= iphasecnt;
+         }    
          if(WhFlag)
          {
-            WhFlag=0;
+             for(buffId=32;buffId<64;buffId+=2)
+             {               
+               music =imusic[(buffId&0xdf)>>1]>>14;
+               imusic[(buffId&0xdf)>>1]=0;
+               SoundData[buffId]  = music;  
+               SoundData[buffId+1]= music; 
+               Uart_Printf("%d\n",music);
+             } 
+             
+             WhFlag=0;
          } 
          else
          {
-            WhFlag=32;
+             for(buffId=0;buffId<32;buffId+=2)
+             {
+               music =imusic[buffId>>1]>>14;
+               imusic[buffId>>1]=0;
+               SoundData[buffId]  = music;  
+               SoundData[buffId+1]= music;
+               Uart_Printf("%d\n",music); 
+             }
+             
+             WhFlag=32;
          } 
     }
 }

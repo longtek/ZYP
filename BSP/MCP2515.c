@@ -487,22 +487,22 @@ static void Can_Write(U32 id, U8 *pdata, unsigned char dlc, int IsExt, int rxRTR
 	switch(ntxbuffer){
 	case 0:
 		MCP2515_WriteBits(TXB0CTRL, (TXB_TXREQ_M|TXB_TXP10_M), 0xff) ;
-		do { err = MCP2515_Read(TXB0CTRL) ; }
-		while( (err &0x08)==0x08 )  ;
+		//do { err = MCP2515_Read(TXB0CTRL) ; }
+		//while( (err &0x08)==0x08 )  ;
 		if( (err &0x70) != 0 )  Uart_Printf( "  Can Send Err = 0x%x\n", err  );
 		ntxbuffer=1;
 		break;
 	case 1:
 		MCP2515_WriteBits(TXB1CTRL, (TXB_TXREQ_M|TXB_TXP10_M), 0xff) ;
-		do { err = MCP2515_Read(TXB1CTRL) ; }
-		while( (err &0x08)==0x08 )  ;
+		//do { err = MCP2515_Read(TXB1CTRL) ; }
+		//while( (err &0x08)==0x08 )  ;
 		if( (err &0x70) != 0 )  Uart_Printf( "  Can Send Err = 0x%x\n", err  );
 		ntxbuffer=2;
 		break;
 	case 2:
 		MCP2515_WriteBits(TXB2CTRL, (TXB_TXREQ_M|TXB_TXP10_M), 0xff) ;
-		do { err = MCP2515_Read(TXB2CTRL) ; }
-		while( (err &0x08)==0x08 )  ;
+		//do { err = MCP2515_Read(TXB2CTRL) ; }
+		//while( (err &0x08)==0x08 )  ;
 		if( (err &0x70) != 0 )  Uart_Printf( "  Can Send Err = 0x%x\n", err  );
 		ntxbuffer=0;
 		break;
@@ -663,7 +663,7 @@ void CAN_2515_TEXT(void)
             if(id==canconfig.RPM.ID)
             {
                Can_Data_Process(data_read,canconfig.RPM,&m_Rpm);
-               //RpmIndex=(int)m_Rpm>>6;
+            
             }
             else if(id== canconfig.SPEED.ID)
             {
