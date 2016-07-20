@@ -21,8 +21,7 @@ void DMA_Init(short *pData,unsigned int nSoundLend)
        rDCON2  = (1<<31)+(0<<30)+(1<<29)+(0<<28)+(0<<27)+(0<<24)+(1<<22)+(1<<20)+nSoundLend;
        //Handshake,sync PLCK,TC int,single tx,27 single service,24I2SSDO,23I2Srequest,22 Auto-reload,half-word,size/2;
        rDMASKTRIG2=(0<<2)|(0<<1)|0;
-       EnableSubIrq(BIT_SUB_DMA2);
-      
+       EnableSubIrq(BIT_SUB_DMA2);      
        //No-stop,DMA2 channel on,No-sw trigger5
 }
 void InitDMATxMode(char *pData,unsigned int nDataLend)

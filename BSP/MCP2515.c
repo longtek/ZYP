@@ -707,9 +707,9 @@ void CAN_2515_RX(void)
         if(id==canconfig.RPM.ID)
         {
             Can_Data_Process(data_read,canconfig.RPM,&m_Rpm);
-            m_RpmIndex=((int)m_Rpm>>6)&0xff;
-            if(m_RpmIndex<10)m_RpmIndex=10;
-            if(m_RpmIndex>=80)m_RpmIndex=79;    
+            m_RpmIndex=((int)m_Rpm>>7)&0xff;
+            if(m_RpmIndex<=1)m_RpmIndex=1;
+            if(m_RpmIndex>=128)m_RpmIndex=128;    
         }
         else if(id== canconfig.SPEED.ID)
         {

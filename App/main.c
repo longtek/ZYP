@@ -12,16 +12,16 @@ OS_STK   SoundTaskStk[SoundTaskStkLengh];
 OS_STK   BTSendTaskStk[BTSendTaskStkLengh];
 OS_STK   BTReceiveTaskStk[BTReceiveTaskStkLengh];
 OS_STK   ProcessTaskStk[ProcessTaskStkLengh];
-OS_EVENT *RxD_Sem,*Sound_Sem,*Tx_Sem,*Rx_Sem;
+OS_EVENT *RxD_Sem,*Sound_Sem,*Tx_Sem,*Rx_Sem; 
 extern CanConfig canconfig;            
 U8 Index=0;                            //selet DMA channel
 S16  SoundData[64];                    //data cache buffer
 U32 FileDataLenth=0,WhFlag=0;          
-short  m_Wavadata[820000]={0};
 float m_Rpm,m_Speed,m_Throttle;       //三个CAN信息
 U8 m_RpmIndex=21,m_OldRpmIndex=21,m_ToChange=FALSE;       //转速位置;
-U32 m_FreData[129][40];
-U32 m_PhaseCnt[40];
+U32 m_FreData[129][40];               //记录进行时各阶次相位增加
+U32 m_PhaseCnt[40];                   //记录各阶次进行时相位
+U16 m_AmtCnt[40];                     //记录各阶次进行时幅值
 int Main(void)
 {  
     TargetInit();
@@ -175,7 +175,6 @@ void BTSendTask(void *pdata)
          rDMASKTRIG0=(0<<2)|(1<<1)|0;                
          OSSemPend(Tx_Sem,0,&err);
          while(!(rUTRSTAT2 & (1 << 2)));
-         Uart_Printf("abcdefghijklmnop\n");
          Change2IRQTxMode();          
          Bluetooth_Putbyte('\n');
          Change2DMATxMode();                                        
@@ -183,8 +182,7 @@ void BTSendTask(void *pdata)
     }
 }
 void Can2515Task(void *pdata)
-{
-    
+{   
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif    
@@ -194,14 +192,14 @@ void Can2515Task(void *pdata)
 	Can_2515Setup();
     while(1)
     {
-        CAN_2515_TX();   
-        OSTimeDlyHMSM(0,0,1,0);       
+        CAN_2515_RX();       
+        OSTimeDlyHMSM(0,0,0,10);       
     }
 }
 void SoundTask(void *pdata)
 {
     unsigned char buffId=0,id;
-    short music=0,Tamt=0;
+    short music=0,Oldamt=0,Newamt;
     int imusic[16]; 
     U32 iphasecnt=0,PhaseOff=0;
     U8 err,iOrder;
@@ -219,48 +217,54 @@ void SoundTask(void *pdata)
     rDMASKTRIG2=(0<<2)|(1<<1)|0;  
     while(1)
     {                   
-        // OSSemPend(Sound_Sem,0,&err);  
+         OSSemPend(Sound_Sem,0,&err);  
          for(iOrder=0;iOrder<40;iOrder++) 
          {
-             iphasecnt=m_PhaseCnt[iOrder];
-             PhaseOff =m_FreData[38][iOrder];
-             Tamt = m_RpmAmt[38][iOrder];
+             iphasecnt= m_PhaseCnt[iOrder];
+             PhaseOff = m_FreData[m_RpmIndex][iOrder];
+             Oldamt   = m_AmtCnt[iOrder];
+             Newamt   = m_RpmAmt[m_RpmIndex][iOrder];
              for(buffId=0;buffId<16;buffId++)
              {
-                 imusic[buffId]+=Tamt*rawDataSin[iphasecnt];            
-                 iphasecnt+=PhaseOff; 
+                 imusic[buffId]+=Oldamt*rawDataSin[iphasecnt];            
+                 iphasecnt+=PhaseOff;
+                 if(Oldamt<Newamt)    //保证幅值变化的连续性
+                 {
+                    Oldamt+=1;
+                 }
+                 else if(Oldamt>Newamt)
+                 {
+                    Oldamt-=1;
+                 } 
                  if(iphasecnt>=441000)
                  {
                     iphasecnt-=441000;
                  }                 
              }
+             m_AmtCnt[iOrder]  = Oldamt;
              m_PhaseCnt[iOrder]= iphasecnt;
          }    
          if(WhFlag)
          {
              for(buffId=32;buffId<64;buffId+=2)
              {               
-               music =imusic[(buffId&0xdf)>>1]>>14;
-               imusic[(buffId&0xdf)>>1]=0;
+               music =imusic[(buffId&0xdf)>>1]>>15;               
                SoundData[buffId]  = music;  
                SoundData[buffId+1]= music; 
-               Uart_Printf("%d\n",music);
-             } 
-             
+               imusic[(buffId&0xdf)>>1]=0;
+             }              
              WhFlag=0;
          } 
          else
          {
              for(buffId=0;buffId<32;buffId+=2)
              {
-               music =imusic[buffId>>1]>>14;
-               imusic[buffId>>1]=0;
+               music =imusic[buffId>>1]>>15;              
                SoundData[buffId]  = music;  
                SoundData[buffId+1]= music;
-               Uart_Printf("%d\n",music); 
-             }
-             
-             WhFlag=32;
+               imusic[buffId>>1]=0;
+             }             
+             WhFlag = 32;
          } 
     }
 }
