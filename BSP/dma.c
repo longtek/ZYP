@@ -55,6 +55,7 @@ void DMA_IRQ(void)
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif 
+    OS_ENTER_CRITICAL();
     DMA_Channel=rSUBSRCPND;    
     if(DMA_Channel&(BIT_SUB_DMA2))
     {  
@@ -68,18 +69,16 @@ void DMA_IRQ(void)
       }
       rDMASKTRIG2=(0<<2)|(1<<1)|0; 
       OSSemPost(Sound_Sem);
-    }
-    OS_ENTER_CRITICAL(); 
-    rSUBSRCPND|=DMA_Channel;        
-    ClearPending(BIT_DMA);
-    OS_EXIT_CRITICAL(); 
-
+    }  
+    if(DMA_Channel&(BIT_SUB_DMA0))
+    {         
+       OSSemPost(Tx_Sem);                           
+    } 
     if(DMA_Channel&(BIT_SUB_DMA1))
     {  
        OSSemPost(RxD_Sem);                           
-    } 
-    else if(DMA_Channel&(BIT_SUB_DMA0))
-    {         
-       OSSemPost(Tx_Sem);                           
-    }        
+    }         
+    rSUBSRCPND|=DMA_Channel;        
+    ClearPending(BIT_DMA);  
+    OS_EXIT_CRITICAL();    
 }

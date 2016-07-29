@@ -103,6 +103,7 @@ typedef double         fp64;                    // 双精度浮点数(64位长度)
 #include "dma.h"
 #include "prowav.h"
 #include "basicdata.h"
+#include "preference.h"
 // 以下根据需要改动
 /********************************/
 /*       用户定义内容           */

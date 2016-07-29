@@ -11,9 +11,12 @@
 #include "2416slib.h" 
 #include "MCP2515.h"
 extern CanConfig canconfig;
-extern float m_Rpm,m_Speed,m_Throttle;
+extern float m_RpmVal,m_SpeedVal,m_ThrottleVal;
 extern U8 m_RpmIndex,m_OldRpmIndex;
 extern U8 m_ToChange;
+extern U8 m_CanFlash;
+extern U32 m_SpeedIndex;
+extern U32 m_ThrottleIndex;
 /****************************************************************************
 MCP2515_CS		GPB7		output		( nSS0 )
 MCP2515_SI		GPE12		output		( SPIMOSI0 )
@@ -326,35 +329,31 @@ static void MCP2515_SetBandRate(CanBandRate bandrate, int IsBackNormal)
 		value = ( MCP2515_Read(MCP2515REG_CANCTRL) & 0xe0 );	//read back mode from CANSTAT Register
 		Uart_Printf( "Set is 0x%x , Read is 0x%x\n", MODE_CONFIG, value ) ;
 	}
-    //Uart_Printf( "\n bandrate =%d !\n",bandrate ) ;	
 	switch(bandrate){
 	case BandRate_10kbps:
 		MCP2515_Write(CNF1, 0x31);	//10k	16TQ
 		MCP2515_Write(CNF2, 0xb0);  //PS1=7 TQ  PSeg=1 TQ
 		MCP2515_Write(CNF3, 0x06);  //PS2=7 TQ SYNC=1 TQ	
-		//if( MCP2515_DEBUG )  Uart_Printf( "CNF1 =  0x%x\n", MCP2515_Read(CNF1) );
-		//if( MCP2515_DEBUG )  Uart_Printf( "CNF2 =  0x%x\n", MCP2515_Read(CNF2) );
-		//if( MCP2515_DEBUG )  Uart_Printf( "CNF3 =  0x%x\n", MCP2515_Read(CNF3) );
 		break;
 	case BandRate_125kbps:
-		MCP2515_Write(CNF1, SJW1|BRP4);	//Synchronization Jump Width Length =1 TQ
+		MCP2515_Write(CNF1, SJW1|BRP2);	//Synchronization Jump Width Length =1 TQ
 		MCP2515_Write(CNF2, BTLMODE_CNF3|(SEG4<<3)|SEG7); // Phase Seg 1 = 4, Prop Seg = 7
 		MCP2515_Write(CNF3, SEG4);// Phase Seg 2 = 4
 		break;
 	case BandRate_250kbps:
-		MCP2515_Write(CNF1, SJW1|BRP2);	//Synchronization Jump Width Length =1 TQ
+		MCP2515_Write(CNF1, SJW1|BRP1);	//Synchronization Jump Width Length =1 TQ
 		MCP2515_Write(CNF2, BTLMODE_CNF3|(SEG4<<3)|SEG7); // Phase Seg 1 = 4, Prop Seg = 7
 		MCP2515_Write(CNF3, SEG4);// Phase Seg 2 = 4
 		break;
 	case BandRate_500kbps:
 		MCP2515_Write(CNF1, SJW1|BRP1);	//Synchronization Jump Width Length =1 TQ
-		MCP2515_Write(CNF2, BTLMODE_CNF3|(SEG4<<3)|SEG7); // Phase Seg 1 = 4, Prop Seg = 7
-		MCP2515_Write(CNF3, SEG4);// Phase Seg 2 = 4
+		MCP2515_Write(CNF2, BTLMODE_CNF3|(SEG3<<3)|SEG2); // Phase Seg 1 = 3, Prop Seg = 2
+		MCP2515_Write(CNF3, SEG2);// Phase Seg 2 = 2
 		break;
-	case BandRate_1Mbps:
+	default:
 		MCP2515_Write(CNF1, SJW1|BRP1);	//Synchronization Jump Width Length =1 TQ
 		MCP2515_Write(CNF2, BTLMODE_CNF3|(SEG3<<3)|SEG2); // Phase Seg 1 = 2, Prop Seg = 3
-		MCP2515_Write(CNF3, SEG2);// Phase Seg 2 = 1
+		MCP2515_Write(CNF3, SEG2);// Phase Seg 2 = 2
 		break;
 	}
 
@@ -440,11 +439,9 @@ static void MCP2515_Write_Can( U8 nbuffer, int ext, U32 can_id, int rxRTR, U8* d
 	U8 mcp_addr = (nbuffer<<4) + 0x31;
 	MCP2515_Swrite(mcp_addr+5, data, dlc );  // write data bytes
 	MCP2515_Write_Can_ID( mcp_addr, can_id,ext);  // write CAN id
-	Uart_Printf("MCP2515_Write_Can_ID\n");
 	if (rxRTR)
 		dlc |= RTR_MASK;  // if RTR set bit in byte
 	MCP2515_Write((mcp_addr+4), dlc);            // write the RTR and DLC
-	Uart_Printf("dlc\n");
 }
 
 /*******************************************\
@@ -607,11 +604,11 @@ void Init_MCP2515(CanBandRate bandrate,CanConfig Canfig)
 	MCP2515_Write_Can_ID(RXM1SIDH, 0x7ff,0);
 	// Anyway, set all filters to 0:
 	MCP2515_Write_Can_ID(RXF0SIDH, Canfig.RPM.ID, 0);
-	MCP2515_Write_Can_ID(RXF1SIDH, Canfig.SPEED.ID, 0);
-	MCP2515_Write_Can_ID(RXF2SIDH, Canfig.THROTTLE.ID, 0);
-	MCP2515_Write_Can_ID(RXF3SIDH, 0x235, 0);
-	MCP2515_Write_Can_ID(RXF4SIDH, 0x236, 0);
-	MCP2515_Write_Can_ID(RXF5SIDH, 0x237, 0);
+	MCP2515_Write_Can_ID(RXF1SIDH, Canfig.THROTTLE.ID, 0);
+	MCP2515_Write_Can_ID(RXF2SIDH, Canfig.SPEED.ID, 0);
+	MCP2515_Write_Can_ID(RXF3SIDH, 0, 0);
+	MCP2515_Write_Can_ID(RXF4SIDH, 0, 0);
+	MCP2515_Write_Can_ID(RXF5SIDH, 0, 0);
 
 	//MCP2515_Write(CLKCTRL, MODE_LOOPBACK| CLKEN | CLK8);//回环模式
     //如果不能用两台设备联机实验的话，可以选择回环模式
@@ -651,7 +648,6 @@ void CAN_2515_TEXT(void)
 	U8 data_read[8];   
     {
 		Can_Write( 250, data_write, 8, FALSE, FALSE);
-		//Uart_Printf( "Data=%x,%x,%x,%x,%x,%x,%x,%x\n",data_read[0],data_read[1],data_read[2],data_read[3],data_read[4],data_read[5],data_read[6],data_read[7] );	
 		if((i=Can2515_Poll())!=-1 ) 
 	    {
             count++;
@@ -662,16 +658,15 @@ void CAN_2515_TEXT(void)
             Uart_Printf( "count=%d,Reveice Data=%x,%x,%x,%x,%x,%x,%x,%x\n",count,data_read[0],data_read[1],data_read[2],data_read[3],data_read[4],data_read[5],data_read[6],data_read[7] );                            
             if(id==canconfig.RPM.ID)
             {
-               Can_Data_Process(data_read,canconfig.RPM,&m_Rpm);
-            
+               Can_Data_Process(data_read,canconfig.RPM,&m_RpmVal);           
             }
             else if(id== canconfig.SPEED.ID)
             {
-              Can_Data_Process(data_read,canconfig.SPEED,&m_Speed);
+               Can_Data_Process(data_read,canconfig.SPEED,&m_SpeedVal);
             }
             else if(id==canconfig.THROTTLE.ID )
             {
-               Can_Data_Process(data_read,canconfig.THROTTLE,&m_Throttle);
+               Can_Data_Process(data_read,canconfig.THROTTLE,&m_ThrottleVal);
             }
 		}
 	 }	
@@ -692,32 +687,38 @@ void CAN_2515_RX(void)
 {   
     int i;   
     U32 id; 
-    static U32 count=0;  
     unsigned char dlc,CTRL;   
     int rxRTR, isExt;   
     int temp;   
     U8 data_read[8];   
     if( (i=Can2515_Poll())!=-1 )  
     {   
-        count++; 
-        temp = Can_Read(i, &id, data_read, &dlc, &rxRTR, &isExt);
-        CTRL=RXB0CTRL+(i<<4); 
-        Uart_Printf( "\ni=%d ID=%d \n",i,id );   
-        Uart_Printf( "count=%d,Reveice Data=%x,%x,%x,%x,%x,%x,%x,%x\n",count,data_read[0],data_read[1],data_read[2],data_read[3],data_read[4],data_read[5],data_read[6],data_read[7] );                            
+        temp = Can_Read(i, &id, data_read, &dlc, &rxRTR, &isExt); 
+        m_CanFlash=TRUE; 
+        //Uart_Printf( "count=%d,Reveice Data=%x,%x,%x,%x,%x,%x,%x,%x\n",count,data_read[0],data_read[1],data_read[2],data_read[3],data_read[4],data_read[5],data_read[6],data_read[7] );                            
         if(id==canconfig.RPM.ID)
         {
-            Can_Data_Process(data_read,canconfig.RPM,&m_Rpm);
-            m_RpmIndex=((int)m_Rpm>>7)&0xff;
+            Can_Data_Process(data_read,canconfig.RPM,&m_RpmVal);
+           // Uart_Printf("%f\n",(float)m_Rpm);   
+            m_RpmIndex=((int)m_RpmVal>>6)&0xff;
             if(m_RpmIndex<=1)m_RpmIndex=1;
             if(m_RpmIndex>=128)m_RpmIndex=128;    
         }
         else if(id== canconfig.SPEED.ID)
         {
-            Can_Data_Process(data_read,canconfig.SPEED,&m_Speed);
+            Can_Data_Process(data_read,canconfig.SPEED,&m_SpeedVal);
+            m_SpeedIndex=(U32)m_SpeedVal;
+            if(m_SpeedIndex>255)m_SpeedIndex=255;
+           //Uart_Printf( "\ni=%d ID=%d \n",i,id );
+           //Uart_Printf("%f\n",(float)m_Speed);
         }
         else if(id==canconfig.THROTTLE.ID )
         {
-            Can_Data_Process(data_read,canconfig.THROTTLE,&m_Throttle);
+            Can_Data_Process(data_read,canconfig.THROTTLE,&m_ThrottleVal);
+            m_ThrottleIndex=(U32)m_ThrottleVal;
+            if(m_ThrottleIndex>127)m_ThrottleIndex=127;
+            Uart_Printf( "\ni=%d ID=%d \n",i,id );
+            Uart_Printf("%f\n",(float)m_ThrottleVal);
         }  
     }
 }
@@ -767,6 +768,5 @@ void Can_Data_Process(U8 *data_read,CANELE canelem,float *CanVal)
             data[0]<<=7-canelem.BITPOS;      //预先处理掉高位无效数据; 
             val=(*p>>(7-canelem.BITPOS))&(0xffffffff>>(32-canelem.DATALEN));
         } 
-        *CanVal=val*canelem.DATACOEF;
-        Uart_Printf("0x%x %x  %f\n",*p,val,(float)*CanVal);      
+        *CanVal=val*canelem.DATACOEF;   
 } 

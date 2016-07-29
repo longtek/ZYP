@@ -27,4 +27,5 @@ void TargetInit(void)
     BToothCS(TRUE);
     /* LED指示灯初始化  */
     led_Init();
+    Led1_On();
  }
